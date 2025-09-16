@@ -1,7 +1,3 @@
-Boa, Gil 👌 Vamos montar o **README.md** para o seu projeto de **Controle de Despesas em Java com Spring Boot**, seguindo exatamente o estilo do exemplo da calculadora, mas adaptado para sua aplicação.
-
----
-
 # 💰 Controle de Despesas - Spring Boot + Thymeleaf + PostgreSQL
 
 Este projeto é uma aplicação web desenvolvida em **Java com Spring Boot** para gerenciamento de despesas pessoais.
@@ -148,7 +144,3 @@ Página inicial → Listagem de despesas → Nova despesa → Salvar → Valida�
 📧 [gilrossi.aguiar@live.com](mailto:gilrossi.aguiar@live.com)
 💼 [LinkedIn](https://www.linkedin.com/in/gil-rossi-5814659b/)
 🐙 [GitHub](https://github.com/GilRossi)
-
----
-
-👉 Quer que eu também prepare um **passo a passo de como rodar esse projeto com Docker Compose (backend + banco juntos)**, para que você não precise do Maven rodando local?
