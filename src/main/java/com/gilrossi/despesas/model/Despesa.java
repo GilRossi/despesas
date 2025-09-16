@@ -7,6 +7,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 /**
  * 
@@ -19,13 +24,24 @@ public class Despesa {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
 	
+	@NotBlank(message = "A descrição não pode estar vazia")
+	@Size(max = 100, message = "A descrição pode ter no máximo 100 caracteres")
 	private String descricao;
 	
+	@NotNull(message = "O valor é obrigatório")
+	@Positive(message = "O valor deve ser maior que 0, não pode ser negativo")
 	private Double valor;
 	
+	@NotNull(message = "A data é obrigatório")
+	@PastOrPresent(message = "A data não pode estar no futuro")
 	private LocalDate data;
 	
+	@NotBlank(message = "A categoria é obrigatória")
 	private String categoria;
+	
+	public Despesa() {
+		
+	}
 	
 	public Despesa(String descricao, Double valor, LocalDate data, String categoria) {
 		this.descricao = descricao;

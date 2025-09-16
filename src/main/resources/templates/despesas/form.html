@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<title>Nova Despesa</title>
+<link
+	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+	rel="stylesheet"
+	integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+	crossorigin="anonymous">
+</head>
+<body class="container mt-4">
+	<h1>Nova Despesa</h1>
+
+	<form th:action="@{/despesas/salvar}" th:object="${despesa}"
+		method="post" class="needs-validation" novalidate>
+		<div class="mb-3">
+			<label class="form-label">Descrição</label> <input type="text"
+				th:field="*{descricao}" class="form-control"
+				th:classappend="${#fields.hasErrors('descricao')} ? 'is-invalid' : ''"
+				required maxlength="100">
+			<div class="invalid-feedback" th:errors="*{descricao}"></div>
+		</div>
+
+		<div class="mb-3">
+			<label class="form-label">Valor</label> <input type="number"
+				th:field="*{valor}" class="form-control"
+				th:classappend="${#fields.hasErrors('valor')} ? 'is-invalid' : ''"
+				required min="0.01" step="0.01">
+			<div class="invalid-feedback" th:errors="*{valor}"></div>
+		</div>
+
+		<div class="mb-3">
+			<label class="form-label">Data</label> <input type="date"
+				th:field="*{data}" class="form-control"
+				th:classappend="${#fields.hasErrors('data')} ? 'is-invalid' : ''"
+				required>
+			<div class="invalid-feedback" th:errors="*{data}"></div>
+		</div>
+
+		<div class="mb-3">
+			<label class="form-label">Categoria</label> <input type="text"
+				th:field="*{categoria}" class="form-control"
+				th:classappend="${#fields.hasErrors('categoria')} ? 'is-invalid' : ''"
+				required>
+			<div class="invalid-feedback" th:errors="*{categoria}"></div>
+		</div>
+
+		<button type="submit" class="btn btn-success">Salvar</button>
+		<a th:href="@{/despesas}" class="btn btn-secondary ms-2">Cancelar</a>
+	</form>
+
+
+</body>
+</html>
