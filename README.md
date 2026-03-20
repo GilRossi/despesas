@@ -1,146 +1,329 @@
-# 💰 Controle de Despesas - Spring Boot + Thymeleaf + PostgreSQL
+# Controle de Despesas
 
-Este projeto é uma aplicação web desenvolvida em **Java com Spring Boot** para gerenciamento de despesas pessoais.
-O objetivo é aplicar boas práticas de **Clean Code, SOLID e Padrões de Projeto**, além de consolidar conhecimentos em **Spring MVC, JPA e Docker**.
+Aplicação Spring Boot para gestão de despesas por household, com interface web em Thymeleaf e API REST em `/api/v1`.
 
----
+O projeto evoluiu de um CRUD simples de despesas para uma base com:
+- identidade por household
+- catálogo de categorias e subcategorias por household
+- despesas com snapshot histórico de categoria/subcategoria
+- pagamentos vinculados às despesas
+- autenticação web por sessão e autenticação de API por Bearer token
+- migrations Flyway, incluindo backfill do legado `tb_despesas`
 
-## 🚀 Tecnologias Utilizadas
+## Objetivo do sistema
 
-* **Java 21+**
-* **Spring Boot 3+**
+Oferecer uma base consistente para controle de despesas domésticas, com separação por household, catálogo configurável, rastreabilidade histórica e superfície pronta para evolução de web e mobile.
 
-  * Spring Web (MVC)
-  * Spring Data JPA
-  * Validation (Jakarta Bean Validation)
-  * Thymeleaf (template engine)
-* **PostgreSQL** (com Docker Compose)
-* **Bootstrap 5** (UI responsiva)
-* **Maven** (build e gerenciamento de dependências)
+## Funcionalidades implementadas
 
----
+- cadastro de usuário com criação de household
+- bootstrap automático de catálogo inicial para household novo
+- login web com sessão Spring Security
+- login/refresh/me na API com Bearer token
+- gestão de membros do household via API
+- gestão de categorias e subcategorias por household via API
+- criação, listagem, edição e exclusão lógica de despesas
+- registro de pagamentos e cálculo de status da despesa
+- dashboard resumido por status
+- envelope de erro unificado em `/api/v1`
+- backfill legado de `tb_despesas` para `expenses`
+- fluxo web `/despesas` adaptado ao domínio atual
 
-## 📂 Estrutura do Projeto
+## Stack
 
-```
-despesas/
-│
-├── src/main/java/com/gilrossi/despesas
-│   ├── controller/         # Controladores MVC
-│   ├── model/              # Entidades JPA
-│   ├── repository/         # Repositórios (Spring Data JPA)
-│   ├── service/            # Regras de negócio
-│   └── DespesasApplication.java  # Classe principal
-│
-├── src/main/resources/
-│   ├── templates/despesas/ # Views Thymeleaf (form.html, lista.html)
-│   ├── application.properties
-│   └── static/             # Recursos estáticos (css, js)
-│
-├── docker-compose.yml       # Configuração do PostgreSQL
-└── pom.xml                  # Dependências Maven
-```
+- Java 21
+- Spring Boot 3.5.5
+- Spring Web MVC
+- Spring Data JPA
+- Spring Security
+- Thymeleaf
+- Flyway
+- PostgreSQL 15
+- H2 para parte da suíte de testes
+- JUnit 5, Spring Test, Spring Security Test, Testcontainers
+- Bootstrap 5
+- Maven Wrapper
 
----
+## Pré-requisitos
 
-## 🛠 Princípios Aplicados
+- JDK 21
+- Docker e Docker Compose
+- acesso a um PostgreSQL local ou container compatível com a configuração do projeto
 
-### **Clean Code**
+## Como rodar localmente
 
-* Métodos coesos e com responsabilidades claras
-* Nomenclatura expressiva para classes, métodos e variáveis
-* Separação entre camadas (Controller, Service, Repository)
-
-### **SOLID**
-
-* **S**ingle Responsibility: cada classe com apenas uma responsabilidade
-* **O**pen/Closed: serviços abertos para extensão, fechados para modificação
-* **L**iskov Substitution: entidades e serviços substituíveis sem quebrar o código
-* **I**nterface Segregation: repositórios e serviços especializados
-* **D**ependency Inversion: injeção de dependência do Spring
-
-### **Design Patterns**
-
-* **MVC Pattern** → separação clara entre Model, View e Controller
-* **Repository Pattern** → abstração da camada de persistência
-* **Service Layer Pattern** → encapsulamento da lógica de negócios
-
----
-
-## ✨ Funcionalidades
-
-* **Cadastrar despesas** (descrição, valor, data, categoria)
-* **Editar despesas** já cadastradas
-* **Listar despesas** em tabela organizada (Bootstrap)
-* **Paginar despesas** para evitar listagens extensas
-* **Validar dados**:
-
-  * Descrição obrigatória e até 100 caracteres
-  * Valor positivo obrigatório
-  * Data obrigatória e não futura
-  * Categoria obrigatória
-* **Excluir despesas** individualmente
-* **Formatação de valores monetários** no padrão brasileiro
-
----
-
-## 💻 Como Executar
-
-### Pré-requisitos
-
-* JDK 21+
-* Docker + Docker Compose
-
-### Passo 1: subir o PostgreSQL no Docker
+### 1. Suba o PostgreSQL local
 
 ```bash
 docker-compose up -d
 ```
 
-### Passo 2: rodar o projeto
+Por padrão, o container sobe como `despesas-postgres` em `localhost:5432`.
+
+### 2. Configure as variáveis importantes
+
+O projeto usa estas variáveis no runtime:
+
+- `APP_SECURITY_TOKEN_SECRET`
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `SHOW_SQL`
+
+Configuração padrão em [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties):
+
+- `DB_URL` default: `jdbc:postgresql://localhost:5432/despesasdb`
+- `DB_USERNAME` default: `postgres`
+- `DB_PASSWORD` default: `postgres`
+- `SHOW_SQL` default: `false`
+
+Importante:
+
+- `APP_SECURITY_TOKEN_SECRET` é obrigatória.
+- A aplicação falha no startup se `app.security.token-secret` não estiver configurado.
+- A API Bearer-only depende desse secret para emitir e validar access/refresh tokens.
+
+Exemplo de execução local:
 
 ```bash
+APP_SECURITY_TOKEN_SECRET=dev-secret-local ./mvnw spring-boot:run
+```
+
+Se quiser apontar para outro banco:
+
+```bash
+APP_SECURITY_TOKEN_SECRET=dev-secret-local \
+DB_URL=jdbc:postgresql://localhost:5432/despesasdb \
+DB_USERNAME=postgres \
+DB_PASSWORD=postgres \
 ./mvnw spring-boot:run
 ```
 
-### Passo 3: acessar no navegador
+### 3. Acesse a aplicação
 
+- Web: `http://localhost:8080/login`
+- Lista web de despesas: `http://localhost:8080/despesas`
+- Healthcheck: `http://localhost:8080/actuator/health`
+
+## Como rodar os testes
+
+### Suíte principal
+
+```bash
+./mvnw test
 ```
-http://localhost:8080/despesas
+
+Essa suíte cobre testes unitários, slices MVC/API e integrações com H2.
+
+### Suíte PostgreSQL/Flyway
+
+```bash
+bash scripts/run-postgres-it.sh
 ```
 
----
+Esse script:
+- sobe o PostgreSQL local via `docker-compose`
+- cria um banco efêmero
+- executa as integrações que validam migrations Flyway, backfill legado e persistência real
 
-## 🎯 Fluxo de Operação
+Ele depende de Docker funcional na máquina local.
 
+## Resumo da arquitetura atual
+
+Estrutura principal:
+
+```text
+src/main/java/com/gilrossi/despesas/
+├── api/v1/          # API REST versionada
+├── catalog/         # catálogo por household
+├── controller/      # controllers MVC/web
+├── expense/         # domínio de despesas, filtros e dashboard
+├── identity/        # usuários, households e membros
+├── payment/         # pagamentos
+├── security/        # Spring Security, token service e providers
+├── service/         # adaptador do fluxo web legado para o domínio atual
+└── model/           # DTO/modelo usado pela casca MVC
 ```
-Página inicial → Listagem de despesas → Nova despesa → Salvar → Validação → Listagem atualizada
-```
 
----
+Divisão de responsabilidades:
 
-## 🧪 Recursos Técnicos
+- `controller/`: superfície web Thymeleaf (`/login`, `/despesas`, redirecionamentos)
+- `api/v1/**`: contratos REST para auth, household, catálogo, despesas, pagamentos e dashboard
+- `expense/`, `payment/`, `identity/`, `catalog/`: regras de negócio e persistência principal
+- `security/`: autenticação, autorização e isolamento por household
+- `service/DespesaService`: adaptador da UI web para o domínio novo
 
-* Persistência com **Spring Data JPA** e PostgreSQL
-* Validações automáticas com **Jakarta Validation**
-* Templates dinâmicos com **Thymeleaf**
-* Estilo moderno com **Bootstrap 5**
-* Integração simplificada via **Docker Compose**
+## Autenticação atual
 
----
+O sistema trabalha com dois modos distintos:
 
-## 📚 Próximos Passos
+### Web
 
-* Criar relatórios mensais com gráficos (Recharts/Chart.js)
-* Implementar autenticação (Spring Security)
-* Evoluir a cobertura para testes de integração e E2E
-* Configurar deploy em ambiente cloud (Heroku, AWS, Azure ou Hostinger VPS)
+- login por formulário Spring Security
+- sessão baseada em cookie
+- rotas web protegidas por autenticação
 
----
+### API `/api/**`
 
-## 👨‍💻 Autor
+- contrato Bearer-only
+- endpoints públicos de auth:
+  - `POST /api/v1/auth/register`
+  - `POST /api/v1/auth/login`
+  - `POST /api/v1/auth/refresh`
+- endpoint autenticado:
+  - `GET /api/v1/auth/me`
+- `httpBasic` não é mais aceito na API
+
+Payload de auth mobile/API:
+
+- `tokenType`
+- `accessToken`
+- `accessTokenExpiresAt`
+- `refreshToken`
+- `refreshTokenExpiresAt`
+- `user`
+
+Limitação atual relevante:
+
+- ainda não existe revogação/rotação persistida de tokens
+
+## Modelo de household
+
+O sistema é multi-household por desenho de domínio:
+
+- um usuário se registra com nome, email, senha e nome do household
+- o registro cria:
+  - `users`
+  - `households`
+  - `household_members`
+- o usuário inicial entra como `OWNER`
+- novos membros podem ser adicionados via API
+- isolamento por household é aplicado nos principais fluxos de catálogo, despesas, pagamentos e dashboard
+
+## Catálogo, despesas e pagamentos
+
+### Catálogo
+
+- categorias e subcategorias são próprias de cada household
+- household novo recebe catálogo inicial automático
+- o catálogo alimenta tanto a API quanto o formulário web
+
+### Despesas
+
+O modelo atual usa estratégia híbrida:
+
+- referência viva:
+  - `category_id`
+  - `subcategory_id`
+- snapshot histórico:
+  - `category_name_snapshot`
+  - `subcategory_name_snapshot`
+
+Isso permite:
+
+- integridade relacional para filtros e validações
+- preservação do nome histórico da categoria/subcategoria na despesa
+
+Cada despesa também possui:
+
+- `household_id`
+- `description`
+- `amount`
+- `due_date`
+- `context`
+- `notes`
+- timestamps de criação/atualização/exclusão lógica
+
+### Pagamentos
+
+- pagamentos são vinculados a despesas
+- o total pago alimenta o status calculado da despesa
+- exclusão de despesa respeita regras de negócio associadas ao histórico de pagamentos
+
+## Migrações e backfill legado
+
+As migrations atuais estão em [`src/main/resources/db/migration`](/home/gil/workspace/claude/despesas/src/main/resources/db/migration):
+
+- `V1__create_tb_despesas.sql`
+- `V2__create_households_users_and_catalog.sql`
+- `V3__create_expenses_and_payments.sql`
+- `V4__identity_security_support.sql`
+- `V5__enforce_catalog_integrity_for_expenses.sql`
+- `V6__enforce_single_active_household_membership.sql`
+- `V7__enforce_subcategory_category_household_integrity.sql`
+- `V8__formalize_expense_snapshot_columns.sql`
+- `V9__backfill_legacy_tb_despesas_into_expenses.sql`
+
+Observações importantes:
+
+- `tb_despesas` é o legado original
+- `expenses` é a verdade operacional atual
+- o backfill de `V9` migra dados legados para `expenses`
+- a tabela legada não deve ser dropada sem nova rodada explícita de reconciliação e validação
+
+## O que foi validado recentemente
+
+No estado atual do projeto, o QA final validou:
+
+- login web
+- proteção de rotas web
+- auth Bearer na API
+- onboarding de household novo
+- fluxo principal de despesas na web
+- regras críticas de API para household, catálogo, despesas e pagamentos
+- backfill legado com validação em PostgreSQL/Flyway
+- bateria destrutiva final de navegação, formulários, CRUD e autorização
+
+## Limitações atuais e próximos passos recomendados
+
+O produto está estável no escopo já validado, mas estes próximos passos fazem sentido:
+
+### Hardening futuro de auth
+
+- revogação persistida de refresh token
+- rotação persistida de refresh token
+- rate limiting para auth pública
+- trilha de auditoria para login, refresh e falhas de autenticação
+
+### E2E adicionais recomendados
+
+- formalizar a suíte Playwright no repositório
+- ampliar cenários browser para múltiplas personas e sessões concorrentes
+- adicionar regressão automática para dashboard e catálogo no fluxo web
+
+### UX e produto
+
+- superfícies web para gestão explícita de categorias/subcategorias
+- refinamento visual do dashboard
+- feedbacks mais ricos para estados vazios e erros de negócio
+
+### Observabilidade
+
+- logs estruturados com correlation/trace id
+- métricas operacionais adicionais além de `health` e `info`
+- auditoria de eventos críticos de domínio
+
+### Evolução funcional
+
+- relatórios analíticos mais ricos
+- indicadores por período/contexto/categoria
+- fluxo mais completo para gestão de pagamentos via web
+
+## Resumo prático para outro desenvolvedor
+
+Se você acabou de clonar o repositório:
+
+1. suba o PostgreSQL com `docker-compose up -d`
+2. defina `APP_SECURITY_TOKEN_SECRET`
+3. rode `./mvnw spring-boot:run`
+4. acesse `http://localhost:8080/login`
+5. para validar a suíte padrão, rode `./mvnw test`
+6. para validar migrations e persistência real, rode `bash scripts/run-postgres-it.sh`
+
+## Autor
 
 **Gil Rossi Aguiar**
-📧 [gilrossi.aguiar@live.com](mailto:gilrossi.aguiar@live.com)
-💼 [LinkedIn](https://www.linkedin.com/in/gil-rossi-5814659b/)
-🐙 [GitHub](https://github.com/GilRossi)
+
+- Email: [gilrossi.aguiar@live.com](mailto:gilrossi.aguiar@live.com)
+- LinkedIn: [gil-rossi-5814659b](https://www.linkedin.com/in/gil-rossi-5814659b/)
+- GitHub: [GilRossi](https://github.com/GilRossi)
