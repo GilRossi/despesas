@@ -14,7 +14,10 @@
 			<h1 class="h1 mb-1">Minhas Despesas</h1>
 			<p class="text-muted mb-0">Controle suas despesas com paginação e edição segura.</p>
 		</div>
-		<a th:href="@{/despesas/nova}" class="btn btn-primary">Nova Despesa</a>
+		<div class="d-flex gap-2 flex-wrap">
+			<a th:href="@{/relatorios}" class="btn btn-outline-dark">Relatórios</a>
+			<a th:href="@{/despesas/nova}" class="btn btn-primary">Nova Despesa</a>
+		</div>
 	</div>
 
 	<div th:if="${mensagemSucesso}" class="alert alert-success" role="alert" th:text="${mensagemSucesso}"></div>
