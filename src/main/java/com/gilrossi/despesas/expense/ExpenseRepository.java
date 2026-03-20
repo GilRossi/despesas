@@ -122,6 +122,33 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 	List<Expense> findAllByHouseholdId(@Param("householdId") Long householdId);
 
 	@Query("""
+		select e
+		from Expense e
+		where e.deletedAt is null
+			and e.householdId = :householdId
+			and e.dueDate between :from and :to
+		order by e.dueDate desc, e.id desc
+		""")
+	List<Expense> findAllByHouseholdIdAndDueDateBetween(
+		@Param("householdId") Long householdId,
+		@Param("from") LocalDate from,
+		@Param("to") LocalDate to
+	);
+
+	@Query("""
+		select e
+		from Expense e
+		where e.deletedAt is null
+			and e.householdId = :householdId
+			and e.dueDate >= :from
+		order by e.dueDate desc, e.id desc
+		""")
+	List<Expense> findAllByHouseholdIdAndDueDateGreaterThanEqual(
+		@Param("householdId") Long householdId,
+		@Param("from") LocalDate from
+	);
+
+	@Query("""
 		select case when count(e) > 0 then true else false end
 		from Expense e
 		where e.deletedAt is null
