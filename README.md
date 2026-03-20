@@ -27,6 +27,7 @@ Oferecer uma base consistente para controle de despesas domésticas, com separa�
 - registro de pagamentos e cálculo de status da despesa
 - dashboard resumido por status
 - resumo financeiro, insights, recomendações e consulta conversacional por linguagem natural
+- página web `/relatorios` com KPIs, comparação mensal, breakdown por categoria e atalhos do assistente
 - envelope de erro unificado em `/api/v1`
 - backfill legado de `tb_despesas` para `expenses`
 - fluxo web `/despesas` adaptado ao domínio atual
@@ -117,6 +118,7 @@ DB_PASSWORD=postgres \
 
 - Web: `http://localhost:8080/login`
 - Lista web de despesas: `http://localhost:8080/despesas`
+- Relatórios web: `http://localhost:8080/relatorios`
 - Healthcheck: `http://localhost:8080/actuator/health`
 
 ## Como rodar os testes
@@ -256,6 +258,19 @@ O desenho atual prioriza baixo custo:
 
 Para web ou Flutter, a recomendação é consumir `/summary`, `/kpis`, `/insights` e `/recommendations` como fonte de verdade da interface e usar `/query` como camada de interpretação conversacional.
 
+## Relatórios web
+
+A superfície web de relatórios em `/relatorios` reaproveita a mesma base determinística do assistente e oferece uma leitura mensal pronta para produto:
+
+- filtro simples por mês
+- comparação opcional com o mês anterior
+- KPIs de total, pago, pendente, maior categoria e variação mensal
+- breakdown por categoria com peso relativo e delta
+- insights acionáveis com maiores despesas, recorrências, aumentos e recomendações
+- atalhos de ponte com o assistente para explicar o mês, destacar mudanças e sugerir economia
+
+Essa página não cria uma segunda fonte de verdade: os números vêm da camada determinística existente, e os atalhos do assistente continuam respeitando `mode=AI` vs `mode=FALLBACK`.
+
 ## Modelo de household
 
 O sistema é multi-household por desenho de domínio:
@@ -374,7 +389,7 @@ O produto está estável no escopo já validado, mas estes próximos passos faze
 
 ### Evolução funcional
 
-- relatórios analíticos mais ricos
+- expandir os relatórios analíticos para novos recortes e séries históricas
 - indicadores por período/contexto/categoria
 - fluxo mais completo para gestão de pagamentos via web
 
