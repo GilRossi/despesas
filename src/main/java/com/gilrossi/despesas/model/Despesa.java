@@ -1,60 +1,54 @@
 package com.gilrossi.despesas.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.gilrossi.despesas.expense.ExpenseContext;
+import com.gilrossi.despesas.expense.ExpenseStatus;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-/**
- * 
- */
-@Entity
-@Table(name = "TB_DESPESAS")
 public class Despesa {
-	
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private long id;
-	
-	@NotBlank(message = "A descrição não pode estar vazia")
-	@Size(max = 100, message = "A descrição pode ter no máximo 100 caracteres")
-	private String descricao;
-	
-	@NotNull(message = "O valor é obrigatório")
-	@Positive(message = "O valor deve ser maior que 0, não pode ser negativo")
-	private Double valor;
-	
-	@NotNull(message = "A data é obrigatório")
-	@PastOrPresent(message = "A data não pode estar no futuro")
-	private LocalDate data;
-	
-	@NotBlank(message = "A categoria é obrigatória")
-	private String categoria;
-	
-	public Despesa() {
-		
-	}
-	
-	public Despesa(String descricao, Double valor, LocalDate data, String categoria) {
-		this.descricao = descricao;
-		this.valor = valor;
-		this.data = data;
-		this.categoria = categoria;		
-	}
 
-	public long getId() {
+	private Long id;
+
+	@NotBlank(message = "A descrição não pode estar vazia")
+	@Size(max = 140, message = "A descrição pode ter no máximo 140 caracteres")
+	private String descricao;
+
+	@NotNull(message = "O valor é obrigatório")
+	@Positive(message = "O valor deve ser maior que 0")
+	private BigDecimal valor;
+
+	@NotNull(message = "A data é obrigatória")
+	private LocalDate data;
+
+	@NotNull(message = "O contexto é obrigatório")
+	private ExpenseContext contexto;
+
+	@NotNull(message = "A categoria é obrigatória")
+	private Long categoriaId;
+
+	private String categoria;
+
+	@NotNull(message = "A subcategoria é obrigatória")
+	private Long subcategoriaId;
+
+	private String subcategoria;
+
+	@Size(max = 255, message = "As observações podem ter no máximo 255 caracteres")
+	private String observacoes;
+
+	private ExpenseStatus status;
+
+	public Long getId() {
 		return id;
 	}
 
-	public void setId(long id) {
+	public void setId(Long id) {
 		this.id = id;
 	}
 
@@ -66,11 +60,11 @@ public class Despesa {
 		this.descricao = descricao;
 	}
 
-	public Double getValor() {
+	public BigDecimal getValor() {
 		return valor;
 	}
 
-	public void setValor(Double valor) {
+	public void setValor(BigDecimal valor) {
 		this.valor = valor;
 	}
 
@@ -82,6 +76,22 @@ public class Despesa {
 		this.data = data;
 	}
 
+	public ExpenseContext getContexto() {
+		return contexto;
+	}
+
+	public void setContexto(ExpenseContext contexto) {
+		this.contexto = contexto;
+	}
+
+	public Long getCategoriaId() {
+		return categoriaId;
+	}
+
+	public void setCategoriaId(Long categoriaId) {
+		this.categoriaId = categoriaId;
+	}
+
 	public String getCategoria() {
 		return categoria;
 	}
@@ -90,6 +100,35 @@ public class Despesa {
 		this.categoria = categoria;
 	}
 
-	
-	
+	public Long getSubcategoriaId() {
+		return subcategoriaId;
+	}
+
+	public void setSubcategoriaId(Long subcategoriaId) {
+		this.subcategoriaId = subcategoriaId;
+	}
+
+	public String getSubcategoria() {
+		return subcategoria;
+	}
+
+	public void setSubcategoria(String subcategoria) {
+		this.subcategoria = subcategoria;
+	}
+
+	public String getObservacoes() {
+		return observacoes;
+	}
+
+	public void setObservacoes(String observacoes) {
+		this.observacoes = observacoes;
+	}
+
+	public ExpenseStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ExpenseStatus status) {
+		this.status = status;
+	}
 }
