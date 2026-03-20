@@ -61,6 +61,18 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_servir_favicon_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/favicon.ico"))
+			.andExpect(status().isOk())
+			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("/favicon.svg"));
+
+		mockMvc.perform(get("/favicon.svg"))
+			.andExpect(status().isOk())
+			.andExpect(content().contentTypeCompatibleWith("image/svg+xml"))
+			.andExpect(content().string(containsString("<svg")));
+	}
+
+	@Test
 	void deve_redirecionar_raiz_autenticada_para_lista_de_despesas() throws Exception {
 		mockMvc.perform(get("/")
 				.with(user("ana@local.invalid").roles("OWNER")))

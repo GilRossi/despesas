@@ -76,7 +76,7 @@ public class SecurityConfig {
 	@Order(2)
 	SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
 		http.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers("/login", "/error", "/actuator/health", "/actuator/info").permitAll()
+				.requestMatchers("/login", "/error", "/actuator/health", "/actuator/info", "/favicon.ico", "/favicon.svg").permitAll()
 				.anyRequest().authenticated())
 			.formLogin(form -> form.defaultSuccessUrl("/despesas"))
 			.logout(Customizer.withDefaults());
