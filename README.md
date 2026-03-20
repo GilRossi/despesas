@@ -7,7 +7,7 @@ O objetivo é aplicar boas práticas de **Clean Code, SOLID e Padrões de Projet
 
 ## 🚀 Tecnologias Utilizadas
 
-* **Java 17+**
+* **Java 21+**
 * **Spring Boot 3+**
 
   * Spring Web (MVC)
@@ -70,7 +70,9 @@ despesas/
 ## ✨ Funcionalidades
 
 * **Cadastrar despesas** (descrição, valor, data, categoria)
+* **Editar despesas** já cadastradas
 * **Listar despesas** em tabela organizada (Bootstrap)
+* **Paginar despesas** para evitar listagens extensas
 * **Validar dados**:
 
   * Descrição obrigatória e até 100 caracteres
@@ -86,8 +88,7 @@ despesas/
 
 ### Pré-requisitos
 
-* JDK 17+
-* Maven 3.9+
+* JDK 21+
 * Docker + Docker Compose
 
 ### Passo 1: subir o PostgreSQL no Docker
@@ -99,7 +100,7 @@ docker-compose up -d
 ### Passo 2: rodar o projeto
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 ### Passo 3: acessar no navegador
@@ -130,10 +131,9 @@ Página inicial → Listagem de despesas → Nova despesa → Salvar → Valida�
 
 ## 📚 Próximos Passos
 
-* Implementar **edição de despesas**
 * Criar relatórios mensais com gráficos (Recharts/Chart.js)
 * Implementar autenticação (Spring Security)
-* Adicionar testes unitários e de integração (JUnit + Mockito)
+* Evoluir a cobertura para testes de integração e E2E
 * Configurar deploy em ambiente cloud (Heroku, AWS, Azure ou Hostinger VPS)
 
 ---
