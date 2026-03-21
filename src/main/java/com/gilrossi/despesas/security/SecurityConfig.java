@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -85,11 +84,12 @@ public class SecurityConfig {
 	@Bean
 	@Order(2)
 	SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
-		http.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers("/login", "/error", "/actuator/health", "/actuator/info", "/favicon.ico", "/favicon.svg").permitAll()
-				.anyRequest().authenticated())
-			.formLogin(form -> form.defaultSuccessUrl("/despesas"))
-			.logout(Customizer.withDefaults());
+		http.csrf(csrf -> csrf.disable())
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.authorizeHttpRequests(authorize -> authorize
+				.requestMatchers(HttpMethod.GET, "/**").permitAll()
+				.requestMatchers(HttpMethod.HEAD, "/**").permitAll()
+				.anyRequest().denyAll());
 		return http.build();
 	}
 }
