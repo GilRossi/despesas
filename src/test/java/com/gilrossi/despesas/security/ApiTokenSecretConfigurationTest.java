@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.web.context.support.StandardServletEnvironment;
 
 import com.gilrossi.despesas.DespesasApplication;
 
@@ -11,7 +13,11 @@ class ApiTokenSecretConfigurationTest {
 
 	@Test
 	void deve_falhar_no_startup_quando_token_secret_nao_estiver_configurado() {
+		var environment = new StandardServletEnvironment();
+		environment.getPropertySources().remove(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME);
+
 		assertThatThrownBy(() -> new SpringApplicationBuilder(DespesasApplication.class)
+			.environment(environment)
 			.properties(
 				"spring.config.name=missing-token-secret-config",
 				"spring.main.web-application-type=servlet",
