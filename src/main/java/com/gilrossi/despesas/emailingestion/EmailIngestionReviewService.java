@@ -36,7 +36,7 @@ public class EmailIngestionReviewService {
 
 	@Transactional
 	public EmailIngestionReviewActionResult approve(Long householdId, Long ingestionId) {
-		EmailIngestionRecord record = requirePendingRecord(householdId, ingestionId);
+		EmailIngestionRecord record = requirePendingRecordForUpdate(householdId, ingestionId);
 		validateImportable(record);
 		try {
 			ExpenseResponse expense = expenseImportService.importExpense(
@@ -60,7 +60,7 @@ public class EmailIngestionReviewService {
 
 	@Transactional
 	public EmailIngestionReviewActionResult reject(Long householdId, Long ingestionId) {
-		EmailIngestionRecord record = requirePendingRecord(householdId, ingestionId);
+		EmailIngestionRecord record = requirePendingRecordForUpdate(householdId, ingestionId);
 		EmailIngestionRecord saved = recordRepository.save(updatedRecord(
 			record,
 			EmailIngestionFinalDecision.IGNORED,
@@ -73,6 +73,16 @@ public class EmailIngestionReviewService {
 	private EmailIngestionRecord requirePendingRecord(Long householdId, Long ingestionId) {
 		EmailIngestionRecord record = recordRepository.findByIdAndHouseholdId(ingestionId, householdId)
 			.orElseThrow(() -> new EmailIngestionReviewNotFoundException(ingestionId));
+		return requirePending(record);
+	}
+
+	private EmailIngestionRecord requirePendingRecordForUpdate(Long householdId, Long ingestionId) {
+		EmailIngestionRecord record = recordRepository.findByIdAndHouseholdIdForUpdate(ingestionId, householdId)
+			.orElseThrow(() -> new EmailIngestionReviewNotFoundException(ingestionId));
+		return requirePending(record);
+	}
+
+	private EmailIngestionRecord requirePending(EmailIngestionRecord record) {
 		if (record.finalDecision() != EmailIngestionFinalDecision.REVIEW_REQUIRED || record.importedExpenseId() != null) {
 			throw new EmailIngestionReviewActionNotAllowedException("A ingestão selecionada não está mais pendente de revisão.");
 		}

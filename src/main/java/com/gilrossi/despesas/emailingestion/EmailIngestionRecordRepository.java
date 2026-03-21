@@ -11,6 +11,8 @@ public interface EmailIngestionRecordRepository {
 
 	Optional<EmailIngestionRecord> findByIdAndHouseholdId(Long id, Long householdId);
 
+	Optional<EmailIngestionRecord> findByIdAndHouseholdIdForUpdate(Long id, Long householdId);
+
 	List<EmailIngestionRecord> findAllByHouseholdId(Long householdId);
 
 	List<EmailIngestionRecord> findAllPendingReviewByHouseholdId(Long householdId);

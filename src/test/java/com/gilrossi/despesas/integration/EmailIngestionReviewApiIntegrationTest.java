@@ -7,6 +7,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.List;
 import java.util.Locale;
 
@@ -161,6 +165,28 @@ class EmailIngestionReviewApiIntegrationTest {
 		assertThat(expenseRepository.findAllByHouseholdId(bruno.householdId())).isEmpty();
 	}
 
+	@Test
+	void deve_permitir_apenas_uma_decisao_concorrente_para_mesma_pendencia() throws Exception {
+		RegistrationResponse owner = registerAndMapSource("review-api-race-owner@local.invalid", "financeiro-api-race@gmail.com");
+		Long ingestionId = createOperationalCandidate("financeiro-api-race@gmail.com", "msg-review-api-race-1", 0.72);
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+			Future<Integer> approve = executor.submit(() -> performConcurrentDecision(owner, ingestionId, true, ready, start));
+			Future<Integer> reject = executor.submit(() -> performConcurrentDecision(owner, ingestionId, false, ready, start));
+			ready.await();
+			start.countDown();
+			List<Integer> statuses = List.of(approve.get(), reject.get());
+			assertThat(statuses).containsExactlyInAnyOrder(200, 422);
+		}
+
+		EmailIngestionRecord updated = recordRepository.findByIdAndHouseholdId(ingestionId, owner.householdId()).orElseThrow();
+		assertThat(updated.finalDecision()).isIn(EmailIngestionFinalDecision.AUTO_IMPORTED, EmailIngestionFinalDecision.IGNORED);
+		if (updated.finalDecision() == EmailIngestionFinalDecision.AUTO_IMPORTED) {
+			assertThat(updated.importedExpenseId()).isNotNull();
+		}
+	}
+
 	private RegistrationResponse registerAndMapSource(String email, String sourceAccount) throws Exception {
 		RegistrationResponse registration = registrationService.register(new RegistrationRequest("Owner", email, "senha123", "Casa " + email));
 		String ownerToken = accessToken(email, "senha123");
@@ -224,6 +250,22 @@ class EmailIngestionReviewApiIntegrationTest {
 			  "desiredDecision":"AUTO_IMPORT"
 			}
 			""", sourceAccount, messageId, messageId, confidence, messageId);
+	}
+
+	private Integer performConcurrentDecision(
+		RegistrationResponse owner,
+		Long ingestionId,
+		boolean approve,
+		CountDownLatch ready,
+		CountDownLatch start
+	) throws Exception {
+		ready.countDown();
+		start.await();
+		return mockMvc.perform(post("/api/v1/email-ingestion/reviews/{id}/{action}", ingestionId, approve ? "approve" : "reject")
+				.with(user(ownerPrincipal(owner))))
+			.andReturn()
+			.getResponse()
+			.getStatus();
 	}
 
 	private AuthenticatedHouseholdUser ownerPrincipal(RegistrationResponse registration) {

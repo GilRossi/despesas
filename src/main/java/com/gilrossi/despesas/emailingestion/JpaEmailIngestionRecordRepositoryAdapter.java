@@ -47,6 +47,13 @@ public class JpaEmailIngestionRecordRepositoryAdapter implements EmailIngestionR
 	}
 
 	@Override
+	@Transactional
+	public Optional<EmailIngestionRecord> findByIdAndHouseholdIdForUpdate(Long id, Long householdId) {
+		return recordRepository.findByIdAndHouseholdIdForUpdate(id, householdId)
+			.map(this::toDomain);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public List<EmailIngestionRecord> findAllByHouseholdId(Long householdId) {
 		return recordRepository.findAllByHouseholdIdOrderByCreatedAtDescIdDesc(householdId).stream()

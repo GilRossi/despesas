@@ -52,7 +52,7 @@ class EmailIngestionReviewServiceTest {
 	@Test
 	void deve_aprovar_pendencia_e_importar_despesa() {
 		EmailIngestionRecord record = reviewRecord(51L, EmailIngestionDecisionReason.REVIEW_REQUESTED);
-		when(recordRepository.findByIdAndHouseholdId(51L, 9L)).thenReturn(Optional.of(record));
+		when(recordRepository.findByIdAndHouseholdIdForUpdate(51L, 9L)).thenReturn(Optional.of(record));
 		when(expenseImportService.importExpense(eq(9L), eq("financeiro@gmail.com"), any())).thenReturn(new ExpenseResponse(
 			88L,
 			"Cobasi",
@@ -83,7 +83,7 @@ class EmailIngestionReviewServiceTest {
 	@Test
 	void deve_rejeitar_pendencia_sem_criar_despesa() {
 		EmailIngestionRecord record = reviewRecord(52L, EmailIngestionDecisionReason.ITEM_TOTAL_MISMATCH);
-		when(recordRepository.findByIdAndHouseholdId(52L, 9L)).thenReturn(Optional.of(record));
+		when(recordRepository.findByIdAndHouseholdIdForUpdate(52L, 9L)).thenReturn(Optional.of(record));
 		when(recordRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
 		EmailIngestionReviewActionResult result = service.reject(9L, 52L);
@@ -126,7 +126,7 @@ class EmailIngestionReviewServiceTest {
 			OffsetDateTime.now(),
 			List.of()
 		);
-		when(recordRepository.findByIdAndHouseholdId(53L, 9L)).thenReturn(Optional.of(record));
+		when(recordRepository.findByIdAndHouseholdIdForUpdate(53L, 9L)).thenReturn(Optional.of(record));
 
 		assertThatThrownBy(() -> service.approve(9L, 53L))
 			.isInstanceOf(EmailIngestionReviewActionNotAllowedException.class)
@@ -167,7 +167,7 @@ class EmailIngestionReviewServiceTest {
 			OffsetDateTime.now(),
 			List.of()
 		);
-		when(recordRepository.findByIdAndHouseholdId(54L, 9L)).thenReturn(Optional.of(record));
+		when(recordRepository.findByIdAndHouseholdIdForUpdate(54L, 9L)).thenReturn(Optional.of(record));
 
 		assertThatThrownBy(() -> service.reject(9L, 54L))
 			.isInstanceOf(EmailIngestionReviewActionNotAllowedException.class)
