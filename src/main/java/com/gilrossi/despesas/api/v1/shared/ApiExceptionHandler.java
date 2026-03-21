@@ -14,6 +14,8 @@ import com.gilrossi.despesas.catalog.category.CategoryNotFoundException;
 import com.gilrossi.despesas.catalog.category.DuplicateCategoryException;
 import com.gilrossi.despesas.catalog.subcategory.DuplicateSubcategoryException;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryNotFoundException;
+import com.gilrossi.despesas.emailingestion.EmailIngestionReviewActionNotAllowedException;
+import com.gilrossi.despesas.emailingestion.EmailIngestionReviewNotFoundException;
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
@@ -45,7 +47,8 @@ public class ApiExceptionHandler {
 		CategoryNotFoundException.class,
 		SubcategoryNotFoundException.class,
 		ExpenseNotFoundException.class,
-		com.gilrossi.despesas.payment.ExpenseNotFoundException.class
+		com.gilrossi.despesas.payment.ExpenseNotFoundException.class,
+		EmailIngestionReviewNotFoundException.class
 	})
 	public org.springframework.http.ResponseEntity<ApiErrorResponse> notFound(RuntimeException exception) {
 		return ApiErrorResponses.notFound(exception.getMessage());
@@ -61,7 +64,12 @@ public class ApiExceptionHandler {
 		return ApiErrorResponses.conflict(exception.getMessage());
 	}
 
-	@ExceptionHandler({PaymentBusinessRuleException.class, IllegalArgumentException.class, IllegalStateException.class})
+	@ExceptionHandler({
+		PaymentBusinessRuleException.class,
+		EmailIngestionReviewActionNotAllowedException.class,
+		IllegalArgumentException.class,
+		IllegalStateException.class
+	})
 	public org.springframework.http.ResponseEntity<ApiErrorResponse> business(RuntimeException exception) {
 		return ApiErrorResponses.unprocessable(exception.getMessage());
 	}

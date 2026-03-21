@@ -29,6 +29,11 @@ public class EmailIngestionReviewService {
 		return recordRepository.findAllPendingReviewByHouseholdId(householdId);
 	}
 
+	@Transactional(readOnly = true)
+	public EmailIngestionRecord detailPending(Long householdId, Long ingestionId) {
+		return requirePendingRecord(householdId, ingestionId);
+	}
+
 	@Transactional
 	public EmailIngestionReviewActionResult approve(Long householdId, Long ingestionId) {
 		EmailIngestionRecord record = requirePendingRecord(householdId, ingestionId);
