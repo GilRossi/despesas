@@ -1,0 +1,422 @@
+{
+  "id": "8SwJvATnProcV100",
+  "name": "Email Ingestion :: Candidate Processor V1",
+  "description": "Common processor for Gmail, Outlook and replay flows. Applies cheap deterministic triage first, uses Information Extractor only for ambiguous/manual emails, and posts candidates to the despesas backend.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-ingestion-process-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1040,
+        160
+      ],
+      "id": "8d42a55a-a5eb-4c46-8da8-a805a1f83281",
+      "name": "Processor Webhook",
+      "webhookId": "8d42a55a-a5eb-4c46-8da8-a805a1f83281"
+    },
+    {
+      "parameters": {
+        "jsCode": "const envelope = $input.first().json;\nconst payload = envelope && typeof envelope.body === 'object' && envelope.body !== null\n  ? envelope.body\n  : envelope;\n\nreturn [{\n  json: {\n    ...payload,\n    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $vars.DESPESAS_BACKEND_BASE_URL || '',\n    operationalToken: payload.operationalToken || envelope.operationalToken || $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        160
+      ],
+      "id": "7227ee50-3d20-4c0d-8d76-620f63f3d4d8",
+      "name": "Normalize Envelope"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst normalized = (...values) =>\n  values\n    .filter((value) => typeof value === 'string' && value.trim().length > 0)\n    .join(' ')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n\nconst clamp = (value, min, max) => Math.min(max, Math.max(min, value));\n\nconst sourceAccount = (item.sourceAccount || '').trim().toLowerCase();\nconst sender = (item.sender || '').trim();\nconst subject = (item.subject || '').trim();\nconst receivedAt = item.receivedAt || new Date().toISOString();\nconst currency = (item.currency || 'BRL').trim().toUpperCase();\nconst textBody = normalized(item.textBody || item.text || '', item.snippet || '', item.htmlBody || '');\nconst lowered = normalized(sender, subject, textBody).toLowerCase();\nconst DEFAULT_REVIEW_CATEGORY = 'Geral';\nconst DEFAULT_REVIEW_SUBCATEGORY = 'Primeiros lançamentos';\nconst amountPattern = /(?:R\\$\\s*|US\\$\\s*|USD\\s*|EUR\\s*|€\\s*|GBP\\s*|£\\s*)?-?\\d[\\d.,]*[\\.,]\\d{2}/gi;\n\nconst buildRawReference = () => {\n  const base = `${sourceAccount}|${item.externalMessageId || ''}|${sender}|${subject}`;\n  return base.length > 500 ? base.slice(0, 500) : base;\n};\n\nconst parseAmountToken = (rawValue) => {\n  if (rawValue == null) return null;\n  if (typeof rawValue === 'number') {\n    return Number.isFinite(rawValue) ? rawValue : null;\n  }\n  const sanitized = String(rawValue)\n    .trim()\n    .replace(/(?:R\\$|US\\$|USD|EUR|GBP|€|£)\\s*/gi, '')\n    .replace(/\\s+/g, '');\n  if (!sanitized) return null;\n  const negative = sanitized.startsWith('-');\n  const unsigned = sanitized.replace(/-/g, '');\n  const lastComma = unsigned.lastIndexOf(',');\n  const lastDot = unsigned.lastIndexOf('.');\n  let normalizedValue = unsigned;\n  if (lastComma >= 0 && lastDot >= 0) {\n    if (lastComma > lastDot) {\n      normalizedValue = unsigned.replace(/\\./g, '').replace(',', '.');\n    } else {\n      normalizedValue = unsigned.replace(/,/g, '');\n    }\n  } else if (lastComma >= 0) {\n    const decimals = unsigned.length - lastComma - 1;\n    normalizedValue = decimals === 2\n      ? unsigned.replace(/\\./g, '').replace(',', '.')\n      : unsigned.replace(/,/g, '');\n  } else if (lastDot >= 0) {\n    const decimals = unsigned.length - lastDot - 1;\n    normalizedValue = decimals === 2\n      ? unsigned.replace(/,/g, '')\n      : unsigned.replace(/\\./g, '');\n  }\n  if (!/^\\d+(?:\\.\\d+)?$/.test(normalizedValue)) {\n    return null;\n  }\n  const parsed = Number(normalizedValue);\n  if (!Number.isFinite(parsed)) {\n    return null;\n  }\n  return negative ? -parsed : parsed;\n};\n\nconst extractMaxAmount = (value) => {\n  if (!value) return null;\n  const matches = value.match(amountPattern) || [];\n  const parsed = matches\n    .map((match) => parseAmountToken(match))\n    .filter((numberValue) => numberValue !== null);\n  if (!parsed.length) return null;\n  return Math.max(...parsed);\n};\n\nconst extractDate = (value) => {\n  if (!value) return null;\n  const iso = value.match(/\\b(20\\d{2}-\\d{2}-\\d{2})\\b/);\n  if (iso) return iso[1];\n  const brazilian = value.match(/\\b(\\d{2})\\/(\\d{2})\\/(20\\d{2})\\b/);\n  if (brazilian) return `${brazilian[3]}-${brazilian[2]}-${brazilian[1]}`;\n  return null;\n};\n\nconst parseItems = (value) => {\n  if (!value) return [];\n  const items = [];\n  for (const rawLine of value.split(/\\r?\\n/)) {\n    const line = rawLine.trim();\n    if (!line) continue;\n    const amountMatch = line.match(amountPattern);\n    if (!amountMatch) continue;\n    const amount = parseAmountToken(amountMatch[0]);\n    if (!Number.isFinite(amount)) continue;\n    const description = line\n      .replace(/^[\\-•*]+\\s*/, '')\n      .replace(amountMatch[0], '')\n      .replace(/[xX]\\s*\\d+$/g, '')\n      .replace(/[\\-–—:]$/g, '')\n      .trim();\n    if (!description) continue;\n    const normalizedDescription = description\n      .toLowerCase()\n      .normalize('NFD')\n      .replace(/[\\u0300-\\u036f]/g, '');\n    const comparableDescription = normalizedDescription\n      .replace(/[^a-z0-9\\s]/g, ' ')\n      .replace(/\\s+/g, ' ')\n      .trim();\n    if (comparableDescription === 'total' || comparableDescription === 'valor total') continue;\n    items.push({\n      description,\n      amount,\n    });\n  }\n  return items.slice(0, 15);\n};\n\nconst resolveReviewCatalog = () => {\n  if (lowered.includes('internet') || lowered.includes('banda larga') || lowered.includes('fibra') || lowered.includes('wi-fi')) {\n    return {\n      suggestedCategoryName: 'Casa',\n      suggestedSubcategoryName: 'Internet',\n    };\n  }\n  if (lowered.includes('mercado') || lowered.includes('supermercado') || lowered.includes('mercearia')) {\n    return {\n      suggestedCategoryName: 'Casa',\n      suggestedSubcategoryName: 'Mercado',\n    };\n  }\n  return {\n    suggestedCategoryName: DEFAULT_REVIEW_CATEGORY,\n    suggestedSubcategoryName: DEFAULT_REVIEW_SUBCATEGORY,\n  };\n};\n\nconst ignoreSignals = [\n  'unsubscribe',\n  'descadastre',\n  'promoção',\n  'promocao',\n  'oferta',\n  'cupom',\n  'newsletter',\n  'black friday',\n  'liquidação',\n  'liquidacao',\n  'instagram',\n  'linkedin',\n  'facebook',\n  'social',\n];\n\nconst financeSignals = [\n  'fatura',\n  'boleto',\n  'vencimento',\n  'mensalidade',\n  'parcela',\n  'recibo',\n  'pagamento',\n  'compra',\n  'nota fiscal',\n  'tarifa',\n  'assinatura',\n  'conta',\n];\n\nconst manualSignals = [\n  'compra',\n  'comprei',\n  'itens',\n  'total',\n  'pet shop',\n  'cobasi',\n  'manual@',\n  'resumo da compra',\n];\n\nconst recurringMapping = () => {\n  if (lowered.includes('internet') || lowered.includes('banda larga') || lowered.includes('fibra') || lowered.includes('wi-fi')) {\n    return {\n      merchantOrPayee: item.merchantOrPayee || 'Internet',\n      suggestedCategoryName: 'Casa',\n      suggestedSubcategoryName: 'Internet',\n      desiredDecision: 'AUTO_IMPORT',\n      confidence: 0.97,\n    };\n  }\n  if (lowered.includes('mercado') || lowered.includes('supermercado')) {\n    return {\n      merchantOrPayee: item.merchantOrPayee || 'Mercado',\n      suggestedCategoryName: 'Casa',\n      suggestedSubcategoryName: 'Mercado',\n      desiredDecision: 'AUTO_IMPORT',\n      confidence: 0.94,\n    };\n  }\n  if (lowered.includes('energia') || lowered.includes('luz') || lowered.includes('gas') || lowered.includes('gás')\n    || lowered.includes('celular') || lowered.includes('telefone') || lowered.includes('internet móvel')\n    || lowered.includes('internet movel')) {\n    const reviewCatalog = resolveReviewCatalog();\n    return {\n      merchantOrPayee: item.merchantOrPayee || sender || subject,\n      suggestedCategoryName: reviewCatalog.suggestedCategoryName,\n      suggestedSubcategoryName: reviewCatalog.suggestedSubcategoryName,\n      desiredDecision: 'REVIEW',\n      confidence: 0.9,\n    };\n  }\n  if (lowered.includes('faculdade') || lowered.includes('universidade') || lowered.includes('mba') || lowered.includes('curso')) {\n    const reviewCatalog = resolveReviewCatalog();\n    return {\n      merchantOrPayee: item.merchantOrPayee || sender || subject,\n      suggestedCategoryName: reviewCatalog.suggestedCategoryName,\n      suggestedSubcategoryName: reviewCatalog.suggestedSubcategoryName,\n      desiredDecision: 'REVIEW',\n      confidence: 0.86,\n    };\n  }\n  if (lowered.includes('banco') || lowered.includes('tarifa') || lowered.includes('anuidade')) {\n    const reviewCatalog = resolveReviewCatalog();\n    return {\n      merchantOrPayee: item.merchantOrPayee || sender || subject,\n      suggestedCategoryName: reviewCatalog.suggestedCategoryName,\n      suggestedSubcategoryName: reviewCatalog.suggestedSubcategoryName,\n      desiredDecision: 'REVIEW',\n      confidence: 0.82,\n    };\n  }\n  return null;\n};\n\nconst manualStructuredMapping = () => {\n  const hasEnoughStructure = parsedItems.length > 0 && effectiveTotal != null;\n  if (!hasEnoughStructure) return null;\n  if (!hasManualSignal && !subject.toLowerCase().includes('compra') && !lowered.includes('resumo da compra')) {\n    return null;\n  }\n\n  const petSignals = ['cobasi', 'pet shop', 'petshop', 'ração', 'racao', 'petisco', 'areia'];\n  const hasPetSignal = petSignals.some((signal) => lowered.includes(signal));\n  const defaultMerchant = item.merchantOrPayee\n    || (lowered.includes('cobasi') ? 'Cobasi' : '')\n    || sender\n    || subject;\n  const reviewCatalog = resolveReviewCatalog();\n\n  return {\n    merchantOrPayee: defaultMerchant,\n    suggestedCategoryName: reviewCatalog.suggestedCategoryName,\n    suggestedSubcategoryName: reviewCatalog.suggestedSubcategoryName,\n    desiredDecision: 'REVIEW',\n    confidence: hasPetSignal ? 0.88 : 0.8,\n    summary: (item.summary || subject || defaultMerchant || 'Compra manual detectada').slice(0, 500),\n  };\n};\n\nconst incompleteManualReview = () => {\n  if (!hasManualSignal) return null;\n  if (effectiveTotal != null || parsedItems.length > 0) return null;\n  const reviewCatalog = resolveReviewCatalog();\n  const defaultMerchant = item.merchantOrPayee || sender || subject;\n  return {\n    merchantOrPayee: defaultMerchant,\n    suggestedCategoryName: reviewCatalog.suggestedCategoryName,\n    suggestedSubcategoryName: reviewCatalog.suggestedSubcategoryName,\n    desiredDecision: 'REVIEW',\n    confidence: 0.55,\n    summary: (item.summary || subject || defaultMerchant || 'Compra manual com dados insuficientes').slice(0, 500),\n  };\n};\n\nconst amount = parseAmountToken(item.totalAmount) ?? extractMaxAmount(lowered);\nconst parsedItems = Array.isArray(item.items) && item.items.length ? item.items : parseItems(item.textBody || item.text || '');\nconst effectiveTotal = amount ?? (parsedItems.length ? parsedItems.reduce((sum, current) => sum + (current.amount || 0), 0) : null);\nconst dueDate = item.dueDate || extractDate(lowered);\nconst occurredOn = item.occurredOn || extractDate(lowered);\nconst hasIgnoreSignal = ignoreSignals.some((signal) => lowered.includes(signal));\nconst hasFinanceSignal = financeSignals.some((signal) => lowered.includes(signal));\nconst hasManualSignal = manualSignals.some((signal) => lowered.includes(signal));\nconst knownMapping = recurringMapping();\nconst manualStructured = manualStructuredMapping();\nconst incompleteManual = incompleteManualReview();\n\nif (hasIgnoreSignal && !hasFinanceSignal) {\n  return [{\n    json: {\n      ...item,\n      route: 'ignore',\n      aiUsed: false,\n      classification: 'IRRELEVANT',\n      desiredDecision: 'IGNORE',\n      confidence: 0.05,\n      merchantOrPayee: item.merchantOrPayee || sender,\n      suggestedCategoryName: null,\n      suggestedSubcategoryName: null,\n      totalAmount: null,\n      dueDate: null,\n      occurredOn: null,\n      items: [],\n      summary: `Ignorado por heurística barata: ${subject || 'sem assunto'}`.slice(0, 500),\n      rawReference: buildRawReference(),\n      extractionText: null,\n    },\n  }];\n}\n\nif (knownMapping) {\n  return [{\n    json: {\n      ...item,\n      route: 'direct',\n      aiUsed: false,\n      classification: 'RECURRING_BILL',\n      desiredDecision: knownMapping.desiredDecision,\n      confidence: knownMapping.confidence,\n      merchantOrPayee: knownMapping.merchantOrPayee,\n      suggestedCategoryName: knownMapping.suggestedCategoryName,\n      suggestedSubcategoryName: knownMapping.suggestedSubcategoryName,\n      totalAmount: effectiveTotal,\n      dueDate,\n      occurredOn,\n      items: parsedItems,\n      summary: (item.summary || subject || sender || 'Cobrança recorrente detectada').slice(0, 500),\n      rawReference: buildRawReference(),\n      extractionText: null,\n    },\n  }];\n}\n\nif (manualStructured) {\n  return [{\n    json: {\n      ...item,\n      route: 'direct',\n      aiUsed: false,\n      classification: 'MANUAL_PURCHASE',\n      desiredDecision: manualStructured.desiredDecision,\n      confidence: manualStructured.confidence,\n      merchantOrPayee: manualStructured.merchantOrPayee,\n      suggestedCategoryName: manualStructured.suggestedCategoryName,\n      suggestedSubcategoryName: manualStructured.suggestedSubcategoryName,\n      totalAmount: effectiveTotal,\n      dueDate,\n      occurredOn,\n      items: parsedItems,\n      summary: manualStructured.summary,\n      rawReference: buildRawReference(),\n      extractionText: null,\n    },\n  }];\n}\n\nif (incompleteManual) {\n  return [{\n    json: {\n      ...item,\n      route: 'direct',\n      aiUsed: false,\n      classification: 'MANUAL_PURCHASE',\n      desiredDecision: incompleteManual.desiredDecision,\n      confidence: incompleteManual.confidence,\n      merchantOrPayee: incompleteManual.merchantOrPayee,\n      suggestedCategoryName: incompleteManual.suggestedCategoryName,\n      suggestedSubcategoryName: incompleteManual.suggestedSubcategoryName,\n      totalAmount: null,\n      dueDate,\n      occurredOn,\n      items: [],\n      summary: incompleteManual.summary,\n      rawReference: buildRawReference(),\n      extractionText: null,\n    },\n  }];\n}\n\nif (hasManualSignal || (hasFinanceSignal && (textBody.length > 60 || parsedItems.length > 0))) {\n  return [{\n    json: {\n      ...item,\n      route: 'ai',\n      aiUsed: true,\n      parsedItems,\n      totalAmount: effectiveTotal,\n      dueDate,\n      occurredOn,\n      rawReference: buildRawReference(),\n      extractionText: normalized(\n        `sender: ${sender}`,\n        `subject: ${subject}`,\n        `body: ${textBody.slice(0, 4000)}`,\n      ),\n    },\n  }];\n}\n\nreturn [{\n  json: {\n    ...item,\n    route: 'ignore',\n    aiUsed: false,\n    classification: 'IRRELEVANT',\n    desiredDecision: 'IGNORE',\n    confidence: 0.1,\n    merchantOrPayee: item.merchantOrPayee || sender,\n    suggestedCategoryName: null,\n    suggestedSubcategoryName: null,\n    totalAmount: null,\n    dueDate: null,\n    occurredOn: null,\n    items: [],\n    summary: 'Ignorado por ausência de sinais financeiros suficientes',\n    rawReference: buildRawReference(),\n    extractionText: null,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        160
+      ],
+      "id": "0f6929e5-cf05-4cf5-96ea-44567825f7af",
+      "name": "Normalize and Triage"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "757b26e2-8ba4-4e77-a145-673610af3fe2-condition-0",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "ai",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -300,
+        160
+      ],
+      "id": "757b26e2-8ba4-4e77-a145-673610af3fe2",
+      "name": "Route AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconst payload = {\n  sourceAccount: item.sourceAccount,\n  externalMessageId: item.externalMessageId,\n  sender: item.sender,\n  subject: item.subject,\n  receivedAt: item.receivedAt,\n  merchantOrPayee: item.merchantOrPayee || null,\n  suggestedCategoryName: item.suggestedCategoryName || null,\n  suggestedSubcategoryName: item.suggestedSubcategoryName || null,\n  totalAmount: item.totalAmount ?? null,\n  dueDate: item.dueDate || null,\n  occurredOn: item.occurredOn || null,\n  currency: item.currency || 'BRL',\n  items: Array.isArray(item.items) ? item.items : [],\n  summary: item.summary || null,\n  classification: item.classification,\n  confidence: item.confidence,\n  rawReference: item.rawReference,\n  desiredDecision: item.desiredDecision,\n};\n\nreturn [{\n  json: {\n    ...item,\n    backendPayload: payload,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -60,
+        20
+      ],
+      "id": "a73d708c-9ba4-414e-81eb-a3387bc3ae84",
+      "name": "Build Deterministic Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nif (!item.backendBaseUrl || !item.operationalToken) {\n  return [{\n    json: {\n      status: 'configuration_error',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction: 'review',\n      candidate: item.backendPayload || null,\n      message: 'Backend runtime configuration is missing in n8n. Provide backendBaseUrl and operationalToken or configure n8n variables.',\n    },\n  }];\n}\n\ntry {\n  const response = await helpers.httpRequest({\n    method: 'POST',\n    url: `${item.backendBaseUrl.replace(/\\/$/, '')}/api/v1/operations/email-ingestions`,\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${item.operationalToken}`,\n    },\n    body: item.backendPayload,\n    returnFullResponse: true,\n  });\n\n  const result = response.body?.data ?? response.body;\n  let mailboxAction = 'review';\n  if (result?.duplicate) {\n    mailboxAction = 'duplicate';\n  } else if (result?.decision === 'AUTO_IMPORTED') {\n    mailboxAction = 'imported';\n  } else if (result?.decision === 'IGNORED') {\n    mailboxAction = 'ignored';\n  }\n\n  return [{\n    json: {\n      status: 'processed',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction,\n      candidate: item.backendPayload,\n      backend: result,\n      mailbox: item.mailbox || null,\n    },\n  }];\n} catch (error) {\n  const backendStatus = error?.response?.status ?? error?.statusCode ?? null;\n  const backendBody = error?.response?.data ?? error?.response?.body ?? null;\n  if (backendStatus) {\n    return [{\n      json: {\n        status: 'backend_error',\n        aiUsed: !!item.aiUsed,\n        route: item.route,\n        mailboxAction: 'review',\n        candidate: item.backendPayload,\n        backendStatus,\n        message: 'Backend rejected the ingestion candidate',\n        backendBody,\n        mailbox: item.mailbox || null,\n      },\n    }];\n  }\n  return [{\n    json: {\n      status: 'backend_unreachable',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction: 'review',\n      candidate: item.backendPayload || null,\n      message: `Failed to reach backend: ${String(error.message || error).slice(0, 180)}`,\n      mailbox: item.mailbox || null,\n    },\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        20
+      ],
+      "id": "ef221667-498f-4600-a86c-3d104a42eb6e",
+      "name": "Post Deterministic Candidate"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        420,
+        20
+      ],
+      "id": "073eaabc-5460-43e0-964f-8c8dce58f5b3",
+      "name": "Respond Deterministic"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.extractionText }}",
+        "schemaType": "fromAttributes",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "classification",
+              "type": "string",
+              "description": "Use only one of RECURRING_BILL, MANUAL_PURCHASE, FINANCIAL_TRANSACTION, IRRELEVANT",
+              "required": true
+            },
+            {
+              "name": "merchantOrPayee",
+              "type": "string",
+              "description": "Best merchant, provider or payee name found in the email",
+              "required": true
+            },
+            {
+              "name": "suggestedCategoryName",
+              "type": "string",
+              "description": "Portuguese spending category name suggestion, concise and capitalized",
+              "required": false
+            },
+            {
+              "name": "suggestedSubcategoryName",
+              "type": "string",
+              "description": "Portuguese spending subcategory suggestion when obvious",
+              "required": false
+            },
+            {
+              "name": "totalAmount",
+              "type": "number",
+              "description": "Total amount in BRL using dot decimal separator",
+              "required": false
+            },
+            {
+              "name": "summary",
+              "type": "string",
+              "description": "Short summary of the financial event in Portuguese",
+              "required": true
+            },
+            {
+              "name": "confidence",
+              "type": "number",
+              "description": "Confidence between 0 and 1. Prefer lower values when the email is incomplete or ambiguous.",
+              "required": true
+            },
+            {
+              "name": "dueDate",
+              "type": "date",
+              "description": "Due date when clearly present",
+              "required": false
+            },
+            {
+              "name": "occurredOn",
+              "type": "date",
+              "description": "Purchase or billing date when clearly present",
+              "required": false
+            }
+          ]
+        },
+        "options": {
+          "systemPromptTemplate": "You classify and extract only financial email candidates. Be concise, structured, conservative on confidence, and never invent values. Prefer IRRELEVANT when the text is marketing or social noise. Prefer REVIEW-grade confidence when category or amount is uncertain."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -40,
+        420
+      ],
+      "id": "0d2f16a4-4d54-4b91-996d-b950dbbc126a",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        700
+      ],
+      "id": "76710016-c653-467a-ac18-c85e14dd2dd6",
+      "name": "Google Gemini Chat Model"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        200,
+        420
+      ],
+      "id": "16e24cfe-70dc-4da9-9af1-6106c871e95d",
+      "name": "Merge AI Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst extracted = item.output || {};\n\nconst safeString = (value, fallback = null) => {\n  if (typeof value !== 'string') return fallback;\n  const trimmed = value.trim();\n  return trimmed ? trimmed : fallback;\n};\n\nconst clamp = (value, min, max) => Math.min(max, Math.max(min, value));\nconst normalizedClassification = safeString(extracted.classification, 'MANUAL_PURCHASE');\nconst normalizedCategory = safeString(extracted.suggestedCategoryName);\nconst normalizedSubcategory = safeString(extracted.suggestedSubcategoryName);\nconst confidence = clamp(Number(extracted.confidence ?? item.confidence ?? 0.7), 0, 1);\nconst defaultSummary = safeString(extracted.summary, safeString(item.subject, 'Despesa extraída por IA'));\nconst defaultMerchant = safeString(extracted.merchantOrPayee, safeString(item.sender, 'Origem não identificada'));\nconst safeTotal = extracted.totalAmount == null ? (item.totalAmount == null ? null : Number(item.totalAmount)) : Number(extracted.totalAmount);\n\nlet desiredDecision = 'REVIEW';\nif (normalizedClassification === 'IRRELEVANT') {\n  desiredDecision = 'IGNORE';\n} else if (\n  confidence >= 0.94 &&\n  normalizedCategory === 'Casa' &&\n  (normalizedSubcategory === 'Internet' || normalizedSubcategory === 'Mercado')\n) {\n  desiredDecision = 'AUTO_IMPORT';\n}\n\nconst payload = {\n  sourceAccount: item.sourceAccount,\n  externalMessageId: item.externalMessageId,\n  sender: item.sender,\n  subject: item.subject,\n  receivedAt: item.receivedAt,\n  merchantOrPayee: defaultMerchant,\n  suggestedCategoryName: normalizedCategory,\n  suggestedSubcategoryName: normalizedSubcategory,\n  totalAmount: safeTotal,\n  dueDate: safeString(extracted.dueDate, item.dueDate || null),\n  occurredOn: safeString(extracted.occurredOn, item.occurredOn || null),\n  currency: item.currency || 'BRL',\n  items: Array.isArray(item.parsedItems) ? item.parsedItems : [],\n  summary: defaultSummary,\n  classification: normalizedClassification,\n  confidence,\n  rawReference: item.rawReference,\n  desiredDecision,\n};\n\nreturn [{\n  json: {\n    ...item,\n    aiUsed: true,\n    backendPayload: payload,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        420
+      ],
+      "id": "5a531557-813e-42bb-8f77-f22fa65bc17f",
+      "name": "Build AI Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nif (!item.backendBaseUrl || !item.operationalToken) {\n  return [{\n    json: {\n      status: 'configuration_error',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction: 'review',\n      candidate: item.backendPayload || null,\n      message: 'Backend runtime configuration is missing in n8n. Provide backendBaseUrl and operationalToken or configure n8n variables.',\n    },\n  }];\n}\n\ntry {\n  const response = await helpers.httpRequest({\n    method: 'POST',\n    url: `${item.backendBaseUrl.replace(/\\/$/, '')}/api/v1/operations/email-ingestions`,\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${item.operationalToken}`,\n    },\n    body: item.backendPayload,\n    returnFullResponse: true,\n  });\n\n  const result = response.body?.data ?? response.body;\n  let mailboxAction = 'review';\n  if (result?.duplicate) {\n    mailboxAction = 'duplicate';\n  } else if (result?.decision === 'AUTO_IMPORTED') {\n    mailboxAction = 'imported';\n  } else if (result?.decision === 'IGNORED') {\n    mailboxAction = 'ignored';\n  }\n\n  return [{\n    json: {\n      status: 'processed',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction,\n      candidate: item.backendPayload,\n      backend: result,\n      mailbox: item.mailbox || null,\n    },\n  }];\n} catch (error) {\n  const backendStatus = error?.response?.status ?? error?.statusCode ?? null;\n  const backendBody = error?.response?.data ?? error?.response?.body ?? null;\n  if (backendStatus) {\n    return [{\n      json: {\n        status: 'backend_error',\n        aiUsed: !!item.aiUsed,\n        route: item.route,\n        mailboxAction: 'review',\n        candidate: item.backendPayload,\n        backendStatus,\n        message: 'Backend rejected the ingestion candidate',\n        backendBody,\n        mailbox: item.mailbox || null,\n      },\n    }];\n  }\n  return [{\n    json: {\n      status: 'backend_unreachable',\n      aiUsed: !!item.aiUsed,\n      route: item.route,\n      mailboxAction: 'review',\n      candidate: item.backendPayload || null,\n      message: `Failed to reach backend: ${String(error.message || error).slice(0, 180)}`,\n      mailbox: item.mailbox || null,\n    },\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        420
+      ],
+      "id": "73c15b69-c46c-40d5-9d10-11e35121a29b",
+      "name": "Post AI Candidate"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        920,
+        420
+      ],
+      "id": "1bcd0ec8-1770-46a7-ad33-77bef73e8b8f",
+      "name": "Respond AI"
+    }
+  ],
+  "connections": {
+    "Processor Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Envelope": {
+      "main": [
+        [
+          {
+            "node": "Normalize and Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize and Triage": {
+      "main": [
+        [
+          {
+            "node": "Route AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route AI": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Deterministic Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deterministic Payload": {
+      "main": [
+        [
+          {
+            "node": "Post Deterministic Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Deterministic Candidate": {
+      "main": [
+        [
+          {
+            "node": "Respond Deterministic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Output",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge AI Output": {
+      "main": [
+        [
+          {
+            "node": "Build AI Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Payload": {
+      "main": [
+        [
+          {
+            "node": "Post AI Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post AI Candidate": {
+      "main": [
+        [
+          {
+            "node": "Respond AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "versionId": "6d7d0be1-76ee-4575-a7ef-c5949df74434",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionMetadata": {
+    "name": null,
+    "description": "Common processor for Gmail, Outlook and replay flows. Applies cheap deterministic triage first, uses Information Extractor only for ambiguous/manual emails, and posts candidates to the despesas backend."
+  }
+}

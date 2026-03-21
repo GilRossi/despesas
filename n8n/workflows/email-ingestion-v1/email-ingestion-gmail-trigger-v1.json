@@ -1,0 +1,283 @@
+{
+  "id": "8SwJvATnGmailV10",
+  "name": "Email Ingestion :: Gmail Trigger V1",
+  "description": "Gmail polling workflow. Uses deterministic Gmail search filters and forwards only normalized envelope data to the common processor. Remains unpublished until Gmail credentials and n8n variables are configured.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "authentication": "oAuth2",
+        "event": "messageReceived",
+        "simple": false,
+        "filters": {
+          "q": "newer_than:2d -category:promotions -category:social",
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": false
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -760,
+        160
+      ],
+      "id": "c98d90bb-f59f-4985-be59-f47d70507d73",
+      "name": "Gmail Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((entry) => {\n  const item = entry.json;\n  const headers = Array.isArray(item.headers) ? item.headers : [];\n  const findHeader = (name) => headers.find((header) => (header.name || '').toLowerCase() === name.toLowerCase())?.value || '';\n  const normalizeSender = (fromValue) => {\n    if (!fromValue) return '';\n    if (typeof fromValue === 'string') return fromValue;\n    if (typeof fromValue?.text === 'string' && fromValue.text.trim()) return fromValue.text.trim();\n    const firstAddress = Array.isArray(fromValue?.value) ? fromValue.value.find((entry) => typeof entry?.address === 'string' && entry.address.trim()) : null;\n    if (firstAddress?.address) return firstAddress.address.trim();\n    return '';\n  };\n\n  return {\n    json: {\n      processorBaseUrl: 'http://127.0.0.1:5678',\n      processorPayload: {\n        channel: 'gmail',\n        sourceAccount: $vars.DESPESAS_GMAIL_SOURCE_ACCOUNT || findHeader('Delivered-To') || findHeader('To') || '',\n        externalMessageId: item.messageId || item.id || '',\n        sender: normalizeSender(item.from) || findHeader('From') || '',\n        subject: item.subject || findHeader('Subject') || '',\n        receivedAt: item.date || item.internalDate || new Date().toISOString(),\n        textBody: item.text || item.snippet || '',\n        htmlBody: item.html || '',\n        merchantOrPayee: '',\n        currency: 'BRL',\n        backendBaseUrl: $vars.DESPESAS_BACKEND_BASE_URL || '',\n        operationalToken: $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',\n        mailbox: {\n          provider: 'gmail',\n          messageId: item.id || item.messageId || '',\n          threadId: item.threadId || '',\n        },\n      },\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        160
+      ],
+      "id": "9a3485e8-a5ec-4b9b-b64d-45f09ddc2128",
+      "name": "Prepare Gmail Envelope"
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputs = [];\n\nfor (const entry of $input.all()) {\n  const item = entry.json;\n  const processorUrl = `${(item.processorBaseUrl || 'http://127.0.0.1:5678').replace(/\\/$/, '')}/webhook/email-ingestion-process-v1`;\n\n  try {\n    const response = await helpers.httpRequest({\n      method: 'POST',\n      url: processorUrl,\n      headers: {\n        'Content-Type': 'application/json',\n      },\n      body: item.processorPayload,\n      returnFullResponse: true,\n    });\n    const responseBody = response.body;\n    const safeJson = responseBody && typeof responseBody === 'object'\n      ? responseBody\n      : null;\n    outputs.push({\n      json: safeJson\n        ? {\n            ...safeJson,\n            mailbox: safeJson.mailbox || item.processorPayload?.mailbox || null,\n          }\n        : {\n            status: 'processor_unparseable_response',\n            httpStatus: response.statusCode,\n            body: responseBody ?? null,\n            mailbox: item.processorPayload?.mailbox || null,\n          },\n    });\n  } catch (error) {\n    const httpStatus = error?.response?.status ?? error?.statusCode ?? null;\n    const body = error?.response?.data ?? error?.response?.body ?? null;\n    if (httpStatus) {\n      outputs.push({\n        json: {\n          status: 'processor_error',\n          httpStatus,\n          body,\n          mailbox: item.processorPayload?.mailbox || null,\n        },\n      });\n      continue;\n    }\n    outputs.push({\n      json: {\n        status: 'processor_unreachable',\n        message: `Failed to reach processor workflow: ${String(error.message || error).slice(0, 180)}`,\n        mailbox: item.processorPayload?.mailbox || null,\n      },\n    });\n  }\n}\n\nreturn outputs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        160
+      ],
+      "id": "2c18f640-d458-4e7f-971f-2da95514bc9e",
+      "name": "Send To Candidate Processor"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((entry) => {\n  const item = entry.json;\n  const backend = item.backend || {};\n  return {\n    json: {\n      ...item,\n      mailboxAction: item.mailboxAction || (backend.duplicate ? 'duplicate' : backend.decision === 'AUTO_IMPORTED' ? 'imported' : backend.decision === 'IGNORED' ? 'ignored' : 'review'),\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        160
+      ],
+      "id": "00aaf278-e3c5-433f-a0e3-34f44d754dc5",
+      "name": "Map Gmail Mailbox Action"
+    },
+    {
+      "parameters": {
+        "jsCode": "const labelByAction = {\n  imported: 'Despesas/Imported',\n  review: 'Despesas/Review',\n  ignored: 'Despesas/Ignored',\n  duplicate: 'Despesas/Duplicate',\n};\n\nreturn $input.all().map((entry) => {\n  const item = entry.json;\n  const mailbox = item.mailbox || {};\n  const shouldLabel = item.status === 'processed' && typeof mailbox.messageId === 'string' && mailbox.messageId.trim().length > 0;\n  const gmailLabelName = shouldLabel\n    ? (labelByAction[item.mailboxAction] || labelByAction.review)\n    : null;\n\n  return {\n    json: {\n      ...item,\n      mailboxUpdateMode: shouldLabel ? 'label' : 'none',\n      gmailLabelName,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        160
+      ],
+      "id": "15f45e70-71b6-4fd9-b899-3cb7b3b61bf1",
+      "name": "Plan Gmail Mailbox Action"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "label",
+        "operation": "getAll"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        620,
+        160
+      ],
+      "id": "60f5710f-a0fd-4f00-9b9f-01ad8d1b27fc",
+      "name": "Load Gmail Labels"
+    },
+    {
+      "parameters": {
+        "jsCode": "const plannedItems = $('Plan Gmail Mailbox Action').all();\nconst labels = $input\n  .all()\n  .map((entry) => entry.json || {})\n  .filter((label) => typeof label.name === 'string' && label.name.trim().length > 0);\n\nreturn plannedItems.map((entry) => {\n  const item = entry.json;\n  const matchedLabel = labels.find((label) => (label.name || '').trim() === item.gmailLabelName);\n\n  return {\n    json: {\n      ...item,\n      gmailLabelId: matchedLabel?.id || null,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        160
+      ],
+      "id": "6a6e188c-9f6c-43ff-82b5-0d1cfeefca1f",
+      "name": "Resolve Gmail Label ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter((entry) => {\n  const item = entry.json;\n  return item.mailboxUpdateMode === 'label'\n    && typeof item.gmailLabelId === 'string'\n    && item.gmailLabelId.trim().length > 0\n    && typeof item.mailbox?.messageId === 'string'\n    && item.mailbox.messageId.trim().length > 0;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        160
+      ],
+      "id": "2ef802ab-b8b0-492d-9339-1d92161f18e7",
+      "name": "Filter Gmail Label Targets"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "addLabels",
+        "messageId": "={{ $json.mailbox.messageId }}",
+        "labelIds": "={{ [$json.gmailLabelId] }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1460,
+        160
+      ],
+      "id": "4b0d90dd-b56d-4af5-a2cc-d3beea412cd4",
+      "name": "Add Gmail Label"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "removeLabels",
+        "messageId": "={{ $json.id || $json.messageId || $json.mailbox?.messageId || '' }}",
+        "labelIds": "={{ ['UNREAD'] }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1740,
+        160
+      ],
+      "id": "b0fcf727-b695-4a31-bc29-449ddf9fe31d",
+      "name": "Mark Gmail As Read"
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gmail Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gmail Envelope": {
+      "main": [
+        [
+          {
+            "node": "Send To Candidate Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send To Candidate Processor": {
+      "main": [
+        [
+          {
+            "node": "Map Gmail Mailbox Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Gmail Mailbox Action": {
+      "main": [
+        [
+          {
+            "node": "Plan Gmail Mailbox Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Gmail Mailbox Action": {
+      "main": [
+        [
+          {
+            "node": "Load Gmail Labels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Gmail Labels": {
+      "main": [
+        [
+          {
+            "node": "Resolve Gmail Label ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Gmail Label ID": {
+      "main": [
+        [
+          {
+            "node": "Filter Gmail Label Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Gmail Label Targets": {
+      "main": [
+        [
+          {
+            "node": "Add Gmail Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Gmail Label": {
+      "main": [
+        [
+          {
+            "node": "Mark Gmail As Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "versionId": "50f970dd-0d18-4c7e-92e7-c413efc935f8",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionMetadata": {
+    "name": null,
+    "description": "Gmail polling workflow. Uses deterministic Gmail search filters and forwards only normalized envelope data to the common processor. Remains unpublished until Gmail credentials and n8n variables are configured."
+  }
+}

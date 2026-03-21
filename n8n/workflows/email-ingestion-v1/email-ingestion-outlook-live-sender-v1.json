@@ -1,0 +1,101 @@
+{
+  "id": "8SwJvATnOutSend02",
+  "name": "Email Ingestion :: Outlook Webhook Sender",
+  "description": "Utility webhook that sends a tagged batch of real emails through the configured Outlook account to validate the live email-ingestion pipeline end to end.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-ingestion-live-send-v1",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        260
+      ],
+      "id": "18832bdf-4f64-4b6c-8e87-d81dd647fbac",
+      "name": "Webhook",
+      "webhookId": "email-ingestion-live-send-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const envelope = $input.first().json;\nconst incoming = envelope && typeof envelope.body === 'object' && envelope.body !== null\n  ? envelope.body\n  : envelope;\n\nconst batchTag = typeof incoming.batchTag === 'string' && incoming.batchTag.trim().length > 0\n  ? incoming.batchTag.trim()\n  : new Date().toISOString().replace(/\\D/g, '').slice(0, 14);\n\nconst gmailTo = incoming.gmailTo || $vars.DESPESAS_SMOKE_GMAIL_TO || '';\nconst outlookTo = incoming.outlookTo || $vars.DESPESAS_SMOKE_OUTLOOK_TO || '';\nconst includeDuplicate = incoming.includeDuplicate !== false;\n\nif (!gmailTo || !outlookTo) {\n  throw new Error('Configure gmailTo/outlookTo no payload ou as variaveis DESPESAS_SMOKE_GMAIL_TO e DESPESAS_SMOKE_OUTLOOK_TO.');\n}\n\nconst recurringSubject = `N8N LIVE BILL ${batchTag}`;\nconst recurringBody = 'Conta internet residencial\\nVencimento 25/03/2026\\nValor total: R$ 129,90\\nInternet fibra casa';\n\nconst messages = [\n  {\n    to: gmailTo,\n    subject: `N8N LIVE IGNORE ${batchTag}`,\n    body: 'Promocao imperdivel da semana\\nunsubscribe\\nCupom de desconto',\n  },\n  {\n    to: gmailTo,\n    subject: `N8N LIVE COBASI ${batchTag}`,\n    body: 'Compra no pet shop Cobasi\\nRacao R$ 199,90\\nAreia R$ 49,90\\nPetisco R$ 39,90\\nTotal R$ 289,70',\n  },\n  {\n    to: outlookTo,\n    subject: recurringSubject,\n    body: recurringBody,\n  },\n];\n\nif (includeDuplicate) {\n  messages.push({\n    to: outlookTo,\n    subject: recurringSubject,\n    body: recurringBody,\n  });\n}\n\nreturn messages.map((message) => ({ json: message }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        260
+      ],
+      "id": "73ebc85f-8933-4b9d-9850-7e9f3b89995f",
+      "name": "Build Messages"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "subject": "={{$json.subject}}",
+        "bodyContent": "={{$json.body}}",
+        "toRecipients": "={{$json.to}}",
+        "additionalFields": {
+          "bodyContentType": "Text",
+          "saveToSentItems": true
+        }
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 1,
+      "position": [
+        80,
+        260
+      ],
+      "id": "8d254a2e-9a43-4331-a111-d7484cbec10e",
+      "name": "Send via Outlook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Messages": {
+      "main": [
+        [
+          {
+            "node": "Send via Outlook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "versionId": "66bd5dd5-5b61-4382-9ea1-124ed9f9f7e9",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionMetadata": {
+    "name": null,
+    "description": "Utility webhook that sends a tagged batch of real emails through the configured Outlook account to validate the live email-ingestion pipeline end to end."
+  }
+}

@@ -6,21 +6,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(ApiSecurityProperties.class)
+@EnableConfigurationProperties({ApiSecurityProperties.class, OperationalEmailIngestionProperties.class})
 public class SecurityConfig {
 
 	@Bean
@@ -45,6 +45,13 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	OperationalBearerTokenAuthenticationFilter operationalBearerTokenAuthenticationFilter(
+		OperationalEmailIngestionProperties properties
+	) {
+		return new OperationalBearerTokenAuthenticationFilter(properties);
+	}
+
+	@Bean
 	AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
 		return authenticationConfiguration.getAuthenticationManager();
 	}
@@ -55,7 +62,8 @@ public class SecurityConfig {
 		HttpSecurity http,
 		ApiAuthenticationEntryPoint authenticationEntryPoint,
 		ApiAccessDeniedHandler accessDeniedHandler,
-		ApiBearerTokenAuthenticationFilter apiBearerTokenAuthenticationFilter
+		ApiBearerTokenAuthenticationFilter apiBearerTokenAuthenticationFilter,
+		OperationalBearerTokenAuthenticationFilter operationalBearerTokenAuthenticationFilter
 	) throws Exception {
 		http.securityMatcher("/api/**")
 			.csrf(csrf -> csrf.disable())
@@ -63,9 +71,11 @@ public class SecurityConfig {
 			.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+				.requestMatchers("/api/v1/operations/**").hasRole("OPERATIONAL_EMAIL_INGESTION")
 				.requestMatchers("/api/v1/auth/me").authenticated()
 				.anyRequest().authenticated())
-			.addFilterBefore(apiBearerTokenAuthenticationFilter, BasicAuthenticationFilter.class)
+			.addFilterBefore(operationalBearerTokenAuthenticationFilter, BasicAuthenticationFilter.class)
+			.addFilterAfter(apiBearerTokenAuthenticationFilter, OperationalBearerTokenAuthenticationFilter.class)
 			.exceptionHandling(exception -> exception
 				.authenticationEntryPoint(authenticationEntryPoint)
 				.accessDeniedHandler(accessDeniedHandler));

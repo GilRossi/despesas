@@ -1,0 +1,196 @@
+{
+  "id": "8SwJvATnMailBootstrap1",
+  "name": "Email Ingestion :: Mailbox Bootstrap V1",
+  "description": "Manual bootstrap for Gmail labels and Outlook folders used by mailboxAction markings in the email ingestion V1 flows.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "email-ingestion-mailbox-bootstrap-v1",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1000,
+        240
+      ],
+      "id": "43c4dbf6-1fd8-4b19-9bb8-0b64e01f68fd",
+      "name": "Bootstrap Webhook",
+      "webhookId": "43c4dbf6-1fd8-4b19-9bb8-0b64e01f68fd"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "label",
+        "operation": "getAll"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -720,
+        120
+      ],
+      "id": "44d20674-4a7b-4b67-aefc-7132e1f9af9f",
+      "name": "Load Gmail Labels"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expectedLabels = [\n  'Despesas/Imported',\n  'Despesas/Review',\n  'Despesas/Ignored',\n  'Despesas/Duplicate',\n];\n\nconst existing = new Set(\n  $input.all()\n    .map((entry) => typeof entry.json?.name === 'string' ? entry.json.name.trim() : '')\n    .filter(Boolean)\n);\n\nreturn expectedLabels\n  .filter((labelName) => !existing.has(labelName))\n  .map((labelName) => ({\n    json: {\n      labelName,\n    },\n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        120
+      ],
+      "id": "b6330ab8-d553-4320-b7c8-27b36ad0b24d",
+      "name": "Find Missing Gmail Labels"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "label",
+        "operation": "create",
+        "name": "={{ $json.labelName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        120
+      ],
+      "id": "c1649c67-7ce0-455d-af71-d0f859f4e4bb",
+      "name": "Create Gmail Label"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        360
+      ],
+      "id": "0d5d1a55-c198-4f42-ad9d-36f1453e0df6",
+      "name": "Load Outlook Folders"
+    },
+    {
+      "parameters": {
+        "jsCode": "const expectedFolders = [\n  'Despesas Imported',\n  'Despesas Review',\n  'Despesas Ignored',\n  'Despesas Duplicate',\n];\n\nconst existing = new Set(\n  $input.all()\n    .map((entry) => typeof entry.json?.displayName === 'string' ? entry.json.displayName.trim() : '')\n    .filter(Boolean)\n);\n\nreturn expectedFolders\n  .filter((folderName) => !existing.has(folderName))\n  .map((folderName) => ({\n    json: {\n      folderName,\n    },\n  }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        360
+      ],
+      "id": "0c36af3a-c9df-48f7-b3a3-16c2938fe2bc",
+      "name": "Find Missing Outlook Folders"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "displayName": "={{ $json.folderName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        360
+      ],
+      "id": "b92a5996-6885-484c-81a7-85ad488b8cdb",
+      "name": "Create Outlook Folder"
+    }
+  ],
+  "connections": {
+    "Bootstrap Webhook": {
+      "main": [
+        [
+          {
+            "node": "Load Gmail Labels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Outlook Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Gmail Labels": {
+      "main": [
+        [
+          {
+            "node": "Find Missing Gmail Labels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Missing Gmail Labels": {
+      "main": [
+        [
+          {
+            "node": "Create Gmail Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Outlook Folders": {
+      "main": [
+        [
+          {
+            "node": "Find Missing Outlook Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Missing Outlook Folders": {
+      "main": [
+        [
+          {
+            "node": "Create Outlook Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "versionId": "0ebc07a8-4f24-4e74-8ea2-62076d67da12",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionMetadata": {
+    "name": null,
+    "description": "Manual bootstrap for Gmail labels and Outlook folders used by mailboxAction markings in the email ingestion V1 flows."
+  }
+}

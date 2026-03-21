@@ -1,0 +1,250 @@
+{
+  "id": "8SwJvATnOutlkV10",
+  "name": "Email Ingestion :: Outlook Trigger V1",
+  "description": "Reusable Microsoft Outlook polling workflow for Outlook, Hotmail and Live accounts. Normalizes the envelope and forwards it to the common processor. Remains unpublished until Outlook credentials and n8n variables are configured.",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "event": "messageReceived",
+        "output": "simple",
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlookTrigger",
+      "typeVersion": 1,
+      "position": [
+        -760,
+        160
+      ],
+      "id": "aa0c178e-f417-4668-8652-0da7842d1378",
+      "name": "Microsoft Outlook Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((entry) => {\n  const item = entry.json;\n  const fromAddress = item.from && item.from.emailAddress ? item.from.emailAddress.address : (item.from || '');\n\n  return {\n    json: {\n      processorBaseUrl: 'http://127.0.0.1:5678',\n      processorPayload: {\n        channel: 'outlook',\n        sourceAccount: $vars.DESPESAS_OUTLOOK_SOURCE_ACCOUNT || '',\n        externalMessageId: item.id || item.internetMessageId || '',\n        sender: fromAddress,\n        subject: item.subject || '',\n        receivedAt: item.receivedDateTime || new Date().toISOString(),\n        textBody: item.bodyPreview || (item.body ? item.body.content : ''),\n        htmlBody: item.body ? item.body.content : '',\n        merchantOrPayee: '',\n        currency: 'BRL',\n        backendBaseUrl: $vars.DESPESAS_BACKEND_BASE_URL || '',\n        operationalToken: $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',\n        mailbox: {\n          provider: 'outlook',\n          messageId: item.id || '',\n        },\n      },\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        160
+      ],
+      "id": "bed7c118-af17-4c28-bdc9-e0adf6a6a7fa",
+      "name": "Prepare Outlook Envelope"
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputs = [];\n\nfor (const entry of $input.all()) {\n  const item = entry.json;\n  const processorUrl = `${(item.processorBaseUrl || 'http://127.0.0.1:5678').replace(/\\/$/, '')}/webhook/email-ingestion-process-v1`;\n\n  try {\n    const response = await helpers.httpRequest({\n      method: 'POST',\n      url: processorUrl,\n      headers: {\n        'Content-Type': 'application/json',\n      },\n      body: item.processorPayload,\n      returnFullResponse: true,\n    });\n    const responseBody = response.body;\n    const safeJson = responseBody && typeof responseBody === 'object'\n      ? responseBody\n      : null;\n    outputs.push({\n      json: safeJson\n        ? {\n            ...safeJson,\n            mailbox: safeJson.mailbox || item.processorPayload?.mailbox || null,\n          }\n        : {\n            status: 'processor_unparseable_response',\n            httpStatus: response.statusCode,\n            body: responseBody ?? null,\n            mailbox: item.processorPayload?.mailbox || null,\n          },\n    });\n  } catch (error) {\n    const httpStatus = error?.response?.status ?? error?.statusCode ?? null;\n    const body = error?.response?.data ?? error?.response?.body ?? null;\n    if (httpStatus) {\n      outputs.push({\n        json: {\n          status: 'processor_error',\n          httpStatus,\n          body,\n          mailbox: item.processorPayload?.mailbox || null,\n        },\n      });\n      continue;\n    }\n    outputs.push({\n      json: {\n        status: 'processor_unreachable',\n        message: `Failed to reach processor workflow: ${String(error.message || error).slice(0, 180)}`,\n        mailbox: item.processorPayload?.mailbox || null,\n      },\n    });\n  }\n}\n\nreturn outputs;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        160
+      ],
+      "id": "9a6c9fd0-7b35-4a4e-b888-9a66c0d4e6d5",
+      "name": "Send To Candidate Processor"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((entry) => {\n  const item = entry.json;\n  const backend = item.backend || {};\n  return {\n    json: {\n      ...item,\n      mailboxAction: item.mailboxAction || (backend.duplicate ? 'duplicate' : backend.decision === 'AUTO_IMPORTED' ? 'imported' : backend.decision === 'IGNORED' ? 'ignored' : 'review'),\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        160
+      ],
+      "id": "99466bbf-6e09-4554-b8dd-55c7d77c2f59",
+      "name": "Map Outlook Mailbox Action"
+    },
+    {
+      "parameters": {
+        "jsCode": "const folderByAction = {\n  imported: 'Despesas Imported',\n  review: 'Despesas Review',\n  ignored: 'Despesas Ignored',\n  duplicate: 'Despesas Duplicate',\n};\n\nreturn $input.all().map((entry) => {\n  const item = entry.json;\n  const mailbox = item.mailbox || {};\n  const shouldMove = item.status === 'processed' && typeof mailbox.messageId === 'string' && mailbox.messageId.trim().length > 0;\n  const outlookTargetFolderName = shouldMove\n    ? (folderByAction[item.mailboxAction] || folderByAction.review)\n    : null;\n  const escapedFolderName = outlookTargetFolderName ? outlookTargetFolderName.replace(/'/g, \"''\") : '';\n\n  return {\n    json: {\n      ...item,\n      mailboxUpdateMode: shouldMove ? 'move' : 'none',\n      outlookTargetFolderName,\n      outlookFolderFilter: outlookTargetFolderName ? `displayName eq '${escapedFolderName}'` : '',\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        160
+      ],
+      "id": "0d5f60e8-3695-4616-9391-143c7a50340c",
+      "name": "Plan Outlook Mailbox Action"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        620,
+        160
+      ],
+      "id": "97cb5ec4-30ce-4511-a638-bf6d8017da19",
+      "name": "Load Outlook Folders"
+    },
+    {
+      "parameters": {
+        "jsCode": "const plannedItems = $('Plan Outlook Mailbox Action').all();\nconst folders = $input\n  .all()\n  .map((entry) => entry.json || {})\n  .filter((folder) => typeof folder.displayName === 'string' && folder.displayName.trim().length > 0);\n\nreturn plannedItems.map((entry) => {\n  const item = entry.json;\n  const matchedFolder = folders.find((folder) => (folder.displayName || '').trim() === item.outlookTargetFolderName);\n\n  return {\n    json: {\n      ...item,\n      outlookTargetFolderId: matchedFolder?.id || null,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        160
+      ],
+      "id": "85f14725-b59d-4123-8c65-6187da4cab4d",
+      "name": "Resolve Outlook Folder ID"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().filter((entry) => {\n  const item = entry.json;\n  return item.mailboxUpdateMode === 'move'\n    && typeof item.outlookTargetFolderId === 'string'\n    && item.outlookTargetFolderId.trim().length > 0\n    && typeof item.mailbox?.messageId === 'string'\n    && item.mailbox.messageId.trim().length > 0;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        160
+      ],
+      "id": "d2460c37-f9a1-489b-ae85-c7a263a3c4d8",
+      "name": "Filter Outlook Move Targets"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "move",
+        "messageId": "={{ $json.mailbox.messageId }}",
+        "folderId": "={{ $json.outlookTargetFolderId }}"
+      },
+      "type": "n8n-nodes-base.microsoftOutlook",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        160
+      ],
+      "id": "1d1aef95-112a-49a2-a6ca-4c9c63d0ea38",
+      "name": "Move Outlook Message"
+    }
+  ],
+  "connections": {
+    "Microsoft Outlook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Outlook Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Outlook Envelope": {
+      "main": [
+        [
+          {
+            "node": "Send To Candidate Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send To Candidate Processor": {
+      "main": [
+        [
+          {
+            "node": "Map Outlook Mailbox Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Outlook Mailbox Action": {
+      "main": [
+        [
+          {
+            "node": "Plan Outlook Mailbox Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Plan Outlook Mailbox Action": {
+      "main": [
+        [
+          {
+            "node": "Load Outlook Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Outlook Folders": {
+      "main": [
+        [
+          {
+            "node": "Resolve Outlook Folder ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve Outlook Folder ID": {
+      "main": [
+        [
+          {
+            "node": "Filter Outlook Move Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Outlook Move Targets": {
+      "main": [
+        [
+          {
+            "node": "Move Outlook Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "pinData": {},
+  "versionId": "176ad337-b18d-4b76-80ca-e3df8ea5ca5d",
+  "activeVersionId": null,
+  "versionCounter": 1,
+  "triggerCount": 1,
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionMetadata": {
+    "name": null,
+    "description": "Reusable Microsoft Outlook polling workflow for Outlook, Hotmail and Live accounts. Normalizes the envelope and forwards it to the common processor. Remains unpublished until Outlook credentials and n8n variables are configured."
+  }
+}

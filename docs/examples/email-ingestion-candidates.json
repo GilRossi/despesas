@@ -1,0 +1,52 @@
+{
+  "recurringBill": {
+    "sourceAccount": "financeiro@gmail.com",
+    "externalMessageId": "gmail:msg-recorrente-123",
+    "sender": "conta@provedor.com.br",
+    "subject": "Internet março",
+    "receivedAt": "2026-03-19T10:15:30Z",
+    "merchantOrPayee": "Provedor Internet",
+    "suggestedCategoryName": "Casa",
+    "suggestedSubcategoryName": "Internet",
+    "totalAmount": 129.90,
+    "dueDate": "2026-03-25",
+    "currency": "BRL",
+    "summary": "Cobranca recorrente de internet residencial",
+    "classification": "RECURRING_BILL",
+    "confidence": 0.96,
+    "rawReference": "gmail:msg-recorrente-123",
+    "desiredDecision": "AUTO_IMPORT"
+  },
+  "manualPurchase": {
+    "sourceAccount": "financeiro@gmail.com",
+    "externalMessageId": "gmail:msg-cobasi-456",
+    "sender": "manual@local.invalid",
+    "subject": "Compra Cobasi",
+    "receivedAt": "2026-03-19T14:20:00Z",
+    "merchantOrPayee": "Cobasi",
+    "suggestedCategoryName": "Pets",
+    "suggestedSubcategoryName": "Pet shop",
+    "totalAmount": 289.70,
+    "occurredOn": "2026-03-19",
+    "currency": "BRL",
+    "items": [
+      {
+        "description": "Racao",
+        "amount": 199.90
+      },
+      {
+        "description": "Areia",
+        "amount": 49.90
+      },
+      {
+        "description": "Petisco",
+        "amount": 39.90
+      }
+    ],
+    "summary": "Compra manual enviada por e-mail",
+    "classification": "MANUAL_PURCHASE",
+    "confidence": 0.97,
+    "rawReference": "gmail:msg-cobasi-456",
+    "desiredDecision": "AUTO_IMPORT"
+  }
+}

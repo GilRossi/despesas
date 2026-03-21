@@ -112,7 +112,11 @@ public class ExpenseService {
 
 	@Transactional
 	public ExpenseResponse criar(CreateExpenseRequest request) {
-		Long householdId = currentHouseholdProvider.requireHouseholdId();
+		return criarParaHousehold(currentHouseholdProvider.requireHouseholdId(), request);
+	}
+
+	@Transactional
+	public ExpenseResponse criarParaHousehold(Long householdId, CreateExpenseRequest request) {
 		Category category = requireCategory(householdId, request.categoryId());
 		Subcategory subcategory = requireSubcategory(householdId, request.subcategoryId(), category.getId());
 		Expense expense = new Expense(
