@@ -1,12 +1,8 @@
 package com.gilrossi.despesas.integration;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.sql.Connection;
@@ -23,12 +19,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gilrossi.despesas.DespesasApplication;
@@ -103,24 +97,6 @@ class LegacyExpenseBackfillReadIT {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.content[?(@.description == 'Mercado legado')]").exists())
 			.andExpect(jsonPath("$.content[?(@.description == 'Conta antiga')]").exists());
-	}
-
-	@Test
-	void deve_expor_despesas_legadas_migradas_na_ui_web() throws Exception {
-		MvcResult login = mockMvc.perform(post("/login")
-				.with(csrf())
-				.param("username", "system@local.invalid")
-				.param("password", "password"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"))
-			.andReturn();
-
-		MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
-
-		mockMvc.perform(get("/despesas").session(session))
-			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("Mercado legado")))
-			.andExpect(content().string(containsString("Conta antiga")));
 	}
 
 	@Test

@@ -1,41 +1,28 @@
 package com.gilrossi.despesas.security;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
-import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.unauthenticated;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import com.gilrossi.despesas.catalog.category.Category;
-import com.gilrossi.despesas.catalog.category.JpaCategoryRepositoryAdapter;
-import com.gilrossi.despesas.catalog.subcategory.JpaSubcategoryRepositoryAdapter;
-import com.gilrossi.despesas.catalog.subcategory.Subcategory;
-import com.gilrossi.despesas.identity.HouseholdMemberRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gilrossi.despesas.identity.RegistrationRequest;
-import com.gilrossi.despesas.identity.RegistrationResponse;
 import com.gilrossi.despesas.identity.RegistrationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@TestPropertySource(properties = "spring.web.resources.static-locations=classpath:/flutter-web/,classpath:/static/")
 class SecurityIntegrationTest {
 
 	@Autowired
@@ -47,37 +34,46 @@ class SecurityIntegrationTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@Autowired
-	private JpaCategoryRepositoryAdapter categoryRepository;
-
-	@Autowired
-	private JpaSubcategoryRepositoryAdapter subcategoryRepository;
-
 	@Test
-	void deve_redirecionar_para_login_quando_web_sem_autenticacao() throws Exception {
-		mockMvc.perform(get("/despesas"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("http://localhost/login"));
+	void deve_servir_front_door_do_flutter_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/"))
+			.andExpect(status().isOk())
+			.andExpect(forwardedUrl("index.html"));
 	}
 
 	@Test
-	void deve_servir_favicon_sem_autenticacao() throws Exception {
-		mockMvc.perform(get("/favicon.ico"))
+	void deve_servir_index_do_flutter_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/index.html"))
 			.andExpect(status().isOk())
-			.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl("/favicon.svg"));
-
-		mockMvc.perform(get("/favicon.svg"))
-			.andExpect(status().isOk())
-			.andExpect(content().contentTypeCompatibleWith("image/svg+xml"))
-			.andExpect(content().string(containsString("<svg")));
+			.andExpect(content().contentTypeCompatibleWith("text/html"))
+			.andExpect(content().string(containsString("despesas flutter web frontdoor")));
 	}
 
 	@Test
-	void deve_redirecionar_raiz_autenticada_para_lista_de_despesas() throws Exception {
-		mockMvc.perform(get("/")
-				.with(user("ana@local.invalid").roles("OWNER")))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"));
+	void deve_servir_ativo_do_flutter_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/flutter_bootstrap.js"))
+			.andExpect(status().isOk())
+			.andExpect(content().contentTypeCompatibleWith("text/javascript"))
+			.andExpect(content().string(containsString("flutter frontdoor bootstrap")));
+	}
+
+	@Test
+	void deve_expor_health_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/actuator/health"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("UP"));
+	}
+
+	@Test
+	void deve_negar_post_no_login_web_legado_apos_cutover() throws Exception {
+		mockMvc.perform(post("/login"))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void deve_negar_post_em_rota_web_legada_apos_cutover() throws Exception {
+		mockMvc.perform(post("/despesas/salvar"))
+			.andExpect(status().isForbidden());
 	}
 
 	@Test
@@ -87,60 +83,6 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 			.andExpect(jsonPath("$.fieldErrors").isArray())
 			.andExpect(jsonPath("$.fieldErrors").isEmpty());
-	}
-
-	@Test
-	void deve_bloquear_post_web_sem_csrf() throws Exception {
-		RegistrationResponse registration = registrationService.register(new RegistrationRequest(
-			"Ana",
-			"ana-web-sem-csrf@local.invalid",
-			"senha123",
-			"Casa da Ana"
-		));
-		List<Category> categories = categoryRepository.findActiveByHouseholdId(registration.householdId());
-		Category category = categories.getFirst();
-		Subcategory subcategory = subcategoryRepository.findActiveByHouseholdId(registration.householdId()).stream()
-			.filter(item -> item.getCategoryId().equals(category.getId()))
-			.findFirst()
-			.orElseThrow();
-
-		mockMvc.perform(post("/despesas/salvar")
-				.with(user(ownerPrincipal(registration)))
-				.param("descricao", "Internet")
-				.param("valor", "120.00")
-				.param("data", "2026-03-19")
-				.param("contexto", "CASA")
-				.param("categoriaId", category.getId().toString())
-				.param("subcategoriaId", subcategory.getId().toString()))
-			.andExpect(status().isForbidden());
-	}
-
-	@Test
-	void deve_aceitar_post_web_com_csrf() throws Exception {
-		RegistrationResponse registration = registrationService.register(new RegistrationRequest(
-			"Ana",
-			"ana-web-form@local.invalid",
-			"senha123",
-			"Casa da Ana"
-		));
-		List<Category> categories = categoryRepository.findActiveByHouseholdId(registration.householdId());
-		Category category = categories.getFirst();
-		Subcategory subcategory = subcategoryRepository.findActiveByHouseholdId(registration.householdId()).stream()
-			.filter(item -> item.getCategoryId().equals(category.getId()))
-			.findFirst()
-			.orElseThrow();
-
-		mockMvc.perform(post("/despesas/salvar")
-				.with(user(ownerPrincipal(registration)))
-				.with(csrf())
-				.param("descricao", "Internet")
-				.param("valor", "120.00")
-				.param("data", "2026-03-19")
-				.param("contexto", "CASA")
-				.param("categoriaId", category.getId().toString())
-				.param("subcategoriaId", subcategory.getId().toString()))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"));
 	}
 
 	@Test
@@ -265,42 +207,6 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
-	void deve_autenticar_login_web_com_credenciais_validas() throws Exception {
-		registrationService.register(new RegistrationRequest(
-			"Ana",
-			"ana-login@local.invalid",
-			"senha123",
-			"Casa da Ana"
-		));
-
-		mockMvc.perform(post("/login")
-				.with(csrf())
-				.param("username", "ana-login@local.invalid")
-				.param("password", "senha123"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"))
-			.andExpect(authenticated().withUsername("ana-login@local.invalid"));
-	}
-
-	@Test
-	void deve_rejeitar_login_web_com_credenciais_invalidas() throws Exception {
-		registrationService.register(new RegistrationRequest(
-			"Ana",
-			"ana-login-invalido@local.invalid",
-			"senha123",
-			"Casa da Ana"
-		));
-
-		mockMvc.perform(post("/login")
-				.with(csrf())
-				.param("username", "ana-login-invalido@local.invalid")
-				.param("password", "senha-errada"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/login?error"))
-			.andExpect(unauthenticated());
-	}
-
-	@Test
 	void deve_registrar_usuario_e_household_via_api() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/register")
 				.contentType("application/json")
@@ -373,7 +279,7 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
-	void deve_negor_mutacao_de_catalogo_para_member() throws Exception {
+	void deve_negar_mutacao_de_catalogo_para_member() throws Exception {
 		registrationService.register(new RegistrationRequest(
 			"Ana",
 			"owner-catalog@local.invalid",
@@ -409,102 +315,6 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"))
 			.andExpect(jsonPath("$.fieldErrors").isArray())
 			.andExpect(jsonPath("$.fieldErrors").isEmpty());
-	}
-
-	@Test
-	void deve_bootstrapar_catalogo_inicial_e_permitir_primeira_despesa_web_para_household_novo() throws Exception {
-		RegistrationResponse registration = registrationService.register(new RegistrationRequest(
-			"Ana",
-			"ana-onboarding@local.invalid",
-			"senha123",
-			"Casa Onboarding"
-		));
-
-		List<Category> categories = categoryRepository.findActiveByHouseholdId(registration.householdId());
-		List<Subcategory> subcategories = subcategoryRepository.findActiveByHouseholdId(registration.householdId());
-
-		org.junit.jupiter.api.Assertions.assertFalse(categories.isEmpty());
-		org.junit.jupiter.api.Assertions.assertFalse(subcategories.isEmpty());
-
-		Category category = categories.getFirst();
-		Subcategory subcategory = subcategories.stream()
-			.filter(item -> item.getCategoryId().equals(category.getId()))
-			.findFirst()
-			.orElseThrow();
-
-		MvcResult login = mockMvc.perform(post("/login")
-				.with(csrf())
-				.param("username", "ana-onboarding@local.invalid")
-				.param("password", "senha123"))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"))
-			.andReturn();
-
-		MockHttpSession session = (MockHttpSession) login.getRequest().getSession(false);
-
-		mockMvc.perform(get("/despesas/nova").session(session))
-			.andExpect(status().isOk())
-			.andExpect(content().string(containsString("Selecione a categoria")));
-
-		mockMvc.perform(post("/despesas/salvar")
-				.session(session)
-				.with(csrf())
-				.param("descricao", "Primeira despesa")
-				.param("valor", "89.90")
-				.param("data", "2026-03-19")
-				.param("contexto", "CASA")
-				.param("categoriaId", category.getId().toString())
-				.param("subcategoriaId", subcategory.getId().toString()))
-			.andExpect(status().is3xxRedirection())
-			.andExpect(redirectedUrl("/despesas"));
-	}
-
-	private AuthenticatedHouseholdUser ownerPrincipal(RegistrationResponse registration) {
-		return new AuthenticatedHouseholdUser(
-			registration.userId(),
-			registration.householdId(),
-			HouseholdMemberRole.OWNER,
-			registration.name(),
-			registration.email(),
-			"senha123"
-		);
-	}
-
-	private Long criarCategoria(String email, String password, String name) throws Exception {
-		String accessToken = loginApi(email, password);
-		String response = mockMvc.perform(post("/api/v1/categories")
-				.header("Authorization", bearer(accessToken))
-				.contentType("application/json")
-				.content("""
-					{
-					  "name":"%s",
-					  "active":true
-					}
-					""".formatted(name)))
-			.andExpect(status().isCreated())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-		return objectMapper.readTree(response).path("data").path("id").asLong();
-	}
-
-	private Long criarSubcategoria(String email, String password, Long categoryId, String name) throws Exception {
-		String accessToken = loginApi(email, password);
-		String response = mockMvc.perform(post("/api/v1/subcategories")
-				.header("Authorization", bearer(accessToken))
-				.contentType("application/json")
-				.content("""
-					{
-					  "categoryId":%s,
-					  "name":"%s",
-					  "active":true
-					}
-					""".formatted(categoryId, name)))
-			.andExpect(status().isCreated())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-		return objectMapper.readTree(response).path("data").path("id").asLong();
 	}
 
 	private String loginApi(String email, String password) throws Exception {
