@@ -19,7 +19,6 @@ Oferecer uma base consistente para controle de despesas domésticas, com separa�
 
 - cadastro de usuário com criação de household
 - bootstrap automático de catálogo inicial para household novo
-- login web com sessão Spring Security
 - login/refresh/me na API com Bearer token
 - gestão de membros do household via API
 - gestão de categorias e subcategorias por household via API
@@ -137,7 +136,7 @@ DB_PASSWORD=postgres \
 ./mvnw test
 ```
 
-Essa suíte cobre testes unitários, slices MVC/API e integrações com H2.
+Essa suíte cobre testes unitários, slices web/API e integrações com H2.
 
 ### Suíte PostgreSQL/Flyway
 
@@ -176,6 +175,14 @@ Divisão de responsabilidades:
 - `financialassistant/`: analytics determinístico, insights, recomendações, intents e orquestração da consulta
 - `financialassistant/ai/`: adapter do provedor, gateway desacoplado, tools compactas e captura de usage
 - `security/`: autenticação, autorização e isolamento por household
+
+Blocos oficiais do sistema final:
+
+- backend Spring Boot: domínio, API, auth Bearer, household boundary e integração operacional
+- Flutter Web: front-door oficial servido pelo backend em `/`
+- Flutter Mobile: companion oficial consumindo a mesma API
+- DeepSeek: provedor opcional da camada conversacional do assistente
+- n8n: automação operacional de ingestão de e-mails, sem virar fonte de verdade de regra de negócio
 
 ## Autenticação atual
 
@@ -287,6 +294,11 @@ O fluxo validado é:
 
 Detalhes operacionais e exports dos workflows estão em [`docs/n8n-email-ingestion.md`](/home/gil/workspace/claude/despesas/docs/n8n-email-ingestion.md).
 
+Source of truth operacional:
+
+- workflows versionados em [`n8n/workflows/email-ingestion-v1`](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1)
+- `n8n-local/` apenas como workspace de runtime local, nunca como fonte canônica de definição
+
 ## Modelo de household
 
 O sistema é multi-household por desenho de domínio:
@@ -368,10 +380,29 @@ No estado atual do projeto, o QA final validou:
 - front-door do Flutter Web
 - auth Bearer na API
 - fluxo principal de despesas no Flutter
+- sanity do Flutter Mobile contra a mesma API
 - regras críticas de API para household, catálogo, despesas e pagamentos
 - backfill legado com validação em PostgreSQL/Flyway
 - review operations por API
 - assistente financeiro por API
+- n8n ponta a ponta até review operations no Flutter Web
+
+## Ordem recomendada de subida
+
+1. subir PostgreSQL
+2. buildar o Flutter Web oficial em `/home/gil/StudioProjects/despesas_frontend`
+3. subir o backend com `APP_FRONTEND_WEB_DIST` apontando para `build/web`
+4. opcionalmente habilitar DeepSeek com `FINANCIAL_ASSISTANT_AI_ENABLED=true` e `DEEPSEEK_API_KEY`
+5. subir o `n8n-local` com as credenciais e variáveis `DESPESAS_*`
+6. executar `Mailbox Bootstrap V1` antes dos triggers reais
+
+## Legado removido da frente oficial
+
+- front-door MVC/Thymeleaf
+- login web por sessão
+- controllers e templates legados de despesas, relatórios e revisões
+
+O backend permaneceu como API e domínio do produto.
 
 ## Limitações atuais e próximos passos recomendados
 

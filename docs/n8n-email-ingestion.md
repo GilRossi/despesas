@@ -135,6 +135,12 @@ Papel de cada workflow:
    - utilitario de smoke local
    - envia lote controlado para Gmail e Outlook/Live sem depender de caixa de terceiro
 
+Source of truth operacional:
+
+- os JSONs versionados em [`n8n/workflows/email-ingestion-v1`](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1) sao a definicao canonica
+- `/home/gil/n8n-local` e apenas workspace de runtime local, credenciais e execucao
+- nao edite o runtime local como se ele fosse a origem oficial do produto
+
 ## Onde a IA Entra
 
 Triagem deterministica primeiro:
@@ -311,8 +317,8 @@ As pendencias `REVIEW_REQUIRED` nao ficam perdidas no n8n. O ciclo operacional v
 - triagem barata no n8n
 - `POST /api/v1/operations/email-ingestions`
 - persistencia e decisao final no backend
-- fila humana em `GET /revisoes`
-- aprovacao ou rejeicao manual via web
+- fila humana em `GET /api/v1/email-ingestion/reviews`
+- aprovacao ou rejeicao manual no Flutter Web oficial
 
 Regras importantes:
 
@@ -347,6 +353,11 @@ No ambiente local desta V1, a sequencia minima estavel apos importar workflows e
 5. confirmar os webhooks registrados antes de rodar bootstrap ou smoke real
 
 Sem esse alinhamento, o n8n local pode ficar com draft/importado valido na base, mas sem registrar os webhooks no runtime.
+
+Observacoes operacionais do runtime local:
+
+- `N8N_RUNNERS_ENABLED` nao e mais necessario nas versoes atuais e deve ser removido do compose local
+- o warning de Python runner em modo interno nao bloqueia esta V1 porque os workflows oficiais usam JS Code nodes, nao Python nodes
 
 ## Lacunas Planejadas
 
