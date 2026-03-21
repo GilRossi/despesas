@@ -28,6 +28,8 @@ Oferecer uma base consistente para controle de despesas domésticas, com separa�
 - dashboard resumido por status
 - resumo financeiro, insights, recomendações e consulta conversacional por linguagem natural
 - página web `/relatorios` com KPIs, comparação mensal, breakdown por categoria e atalhos do assistente
+- ingestão operacional de e-mails financeiros para n8n, com triagem conservadora e deduplicação no backend
+- página web `/revisoes` para tratar pendências `REVIEW_REQUIRED` com aprovação ou rejeição manual
 - envelope de erro unificado em `/api/v1`
 - backfill legado de `tb_despesas` para `expenses`
 - fluxo web `/despesas` adaptado ao domínio atual
@@ -74,6 +76,7 @@ O projeto usa estas variáveis no runtime:
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `SHOW_SQL`
+- `APP_OPERATIONAL_EMAIL_INGESTION_TOKEN`
 - `FINANCIAL_ASSISTANT_AI_ENABLED`
 - `DEEPSEEK_API_KEY`
 - `DEEPSEEK_BASE_URL`
@@ -119,6 +122,7 @@ DB_PASSWORD=postgres \
 - Web: `http://localhost:8080/login`
 - Lista web de despesas: `http://localhost:8080/despesas`
 - Relatórios web: `http://localhost:8080/relatorios`
+- Revisões web: `http://localhost:8080/revisoes`
 - Healthcheck: `http://localhost:8080/actuator/health`
 
 ## Como rodar os testes
@@ -270,6 +274,21 @@ A superfície web de relatórios em `/relatorios` reaproveita a mesma base deter
 - atalhos de ponte com o assistente para explicar o mês, destacar mudanças e sugerir economia
 
 Essa página não cria uma segunda fonte de verdade: os números vêm da camada determinística existente, e os atalhos do assistente continuam respeitando `mode=AI` vs `mode=FALLBACK`.
+
+## Ingestão por e-mail e review operations
+
+O projeto também já fecha o ciclo operacional web + n8n para ingestão de e-mails financeiros:
+
+- o n8n captura e-mails, faz triagem barata e só envia candidatos estruturados ao backend
+- o backend decide `AUTO_IMPORTED`, `REVIEW_REQUIRED`, `IGNORED` ou duplicado
+- candidatos conservadores ou incompletos permanecem honestamente em review
+- a fila humana fica em `/revisoes`, com approve/reject reaproveitando o mesmo backend determinístico
+
+O fluxo validado é:
+
+- `n8n -> POST /api/v1/operations/email-ingestions -> REVIEW_REQUIRED -> /revisoes -> aprovar/rejeitar`
+
+Detalhes operacionais e exports dos workflows estão em [`docs/n8n-email-ingestion.md`](/home/gil/workspace/claude/despesas/docs/n8n-email-ingestion.md).
 
 ## Modelo de household
 
