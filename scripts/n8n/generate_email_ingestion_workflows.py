@@ -717,9 +717,12 @@ REPLAY_SAMPLE_CODE = dedent(
 	};
 
 const base = samples[scenario] || samples.recurringBill;
+const processorBaseUrl = incoming.processorBaseUrl
+  || $vars.WEBHOOK_URL
+  || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`;
 return [{
   json: {
-    processorBaseUrl: incoming.processorBaseUrl || 'http://127.0.0.1:5678',
+    processorBaseUrl,
     processorPayload: {
       ...base,
       channel: incoming.channel || 'replay',
@@ -737,7 +740,10 @@ FORWARD_TO_PROCESSOR_CODE = dedent(
 
 	for (const entry of $input.all()) {
 	  const item = entry.json;
-	  const processorUrl = `${(item.processorBaseUrl || 'http://127.0.0.1:5678').replace(/\\/$/, '')}/webhook/email-ingestion-process-v1`;
+	  const processorBaseUrl = item.processorBaseUrl
+	    || $vars.WEBHOOK_URL
+	    || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`;
+	  const processorUrl = `${processorBaseUrl.replace(/\\/$/, '')}/webhook/email-ingestion-process-v1`;
 
 	  try {
 	    const response = await helpers.httpRequest({
@@ -811,7 +817,7 @@ GMAIL_PREPARE_CODE = dedent(
 
 	  return {
 	    json: {
-	      processorBaseUrl: 'http://127.0.0.1:5678',
+	      processorBaseUrl: $vars.WEBHOOK_URL || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`,
 	      processorPayload: {
 	        channel: 'gmail',
 	        sourceAccount: $vars.DESPESAS_GMAIL_SOURCE_ACCOUNT || findHeader('Delivered-To') || findHeader('To') || '',
@@ -845,7 +851,7 @@ OUTLOOK_PREPARE_CODE = dedent(
 
 	  return {
 	    json: {
-	      processorBaseUrl: 'http://127.0.0.1:5678',
+	      processorBaseUrl: $vars.WEBHOOK_URL || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`,
 	      processorPayload: {
 	        channel: 'outlook',
 	        sourceAccount: $vars.DESPESAS_OUTLOOK_SOURCE_ACCOUNT || '',
@@ -1355,7 +1361,7 @@ def information_extractor_node(node_id: str, position: list[int]) -> dict:
 def gemini_model_node(node_id: str, position: list[int]) -> dict:
 	return {
 		"parameters": {
-			"modelName": "models/gemini-3.1-flash-lite-preview",
+			"modelName": "={{ $vars.GOOGLE_GEMINI_MODEL || 'models/gemini-3.1-flash-lite-preview' }}",
 			"options": {
 				"temperature": 0.1,
 			},
