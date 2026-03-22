@@ -1,0 +1,24 @@
+services:
+  proxy:
+    image: ${PROXY_IMAGE:-caddy:2.10-alpine}
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - n8n
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL must be set}
+      APP_PUBLIC_HOST: ${APP_PUBLIC_HOST:?APP_PUBLIC_HOST must be set}
+      N8N_PUBLIC_HOST: ${N8N_PUBLIC_HOST:?N8N_PUBLIC_HOST must be set}
+    volumes:
+      - ./deploy/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - despesas_internal
+
+volumes:
+  caddy_data:
+  caddy_config:

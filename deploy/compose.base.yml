@@ -1,0 +1,79 @@
+name: despesas
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:15}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - despesas_internal
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_URL: ${DB_URL:?DB_URL must be set}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be set}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      APP_SECURITY_TOKEN_SECRET: ${APP_SECURITY_TOKEN_SECRET:?APP_SECURITY_TOKEN_SECRET must be set}
+      APP_OPERATIONAL_EMAIL_INGESTION_TOKEN: ${APP_OPERATIONAL_EMAIL_INGESTION_TOKEN:?APP_OPERATIONAL_EMAIL_INGESTION_TOKEN must be set}
+      APP_FRONTEND_WEB_DIST: ${APP_FRONTEND_WEB_DIST:?APP_FRONTEND_WEB_DIST must be set}
+      APP_SHOW_SQL: ${APP_SHOW_SQL:-false}
+      FINANCIAL_ASSISTANT_AI_ENABLED: ${FINANCIAL_ASSISTANT_AI_ENABLED:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_LOG_REQUESTS: ${DEEPSEEK_LOG_REQUESTS:-false}
+      DEEPSEEK_LOG_RESPONSES: ${DEEPSEEK_LOG_RESPONSES:-false}
+      DEEPSEEK_TEMPERATURE: ${DEEPSEEK_TEMPERATURE:-0.1}
+      DEEPSEEK_MAX_COMPLETION_TOKENS: ${DEEPSEEK_MAX_COMPLETION_TOKENS:-220}
+      DEEPSEEK_TIMEOUT_SECONDS: ${DEEPSEEK_TIMEOUT_SECONDS:-20}
+      DEEPSEEK_MAX_RETRIES: ${DEEPSEEK_MAX_RETRIES:-1}
+    volumes:
+      - /srv/despesas/frontend-web/current:/app/frontend-web:ro
+    expose:
+      - "8080"
+    networks:
+      - despesas_internal
+
+  n8n:
+    image: ${N8N_IMAGE:-docker.n8n.io/n8nio/n8n:stable}
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:?TZ must be set}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:?GENERIC_TIMEZONE must be set}
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: ${N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS:?N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS must be set}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY must be set}
+      N8N_HOST: ${N8N_HOST:?N8N_HOST must be set}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:?N8N_PROTOCOL must be set}
+      N8N_PORT: ${N8N_PORT:?N8N_PORT must be set}
+      WEBHOOK_URL: ${WEBHOOK_URL:?WEBHOOK_URL must be set}
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:?N8N_PROXY_HOPS must be set}
+      DESPESAS_BACKEND_BASE_URL: ${DESPESAS_BACKEND_BASE_URL:?DESPESAS_BACKEND_BASE_URL must be set}
+      DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN: ${DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN:?DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN must be set}
+      DESPESAS_GMAIL_SOURCE_ACCOUNT: ${DESPESAS_GMAIL_SOURCE_ACCOUNT:-}
+      DESPESAS_OUTLOOK_SOURCE_ACCOUNT: ${DESPESAS_OUTLOOK_SOURCE_ACCOUNT:?DESPESAS_OUTLOOK_SOURCE_ACCOUNT must be set}
+      DESPESAS_SMOKE_GMAIL_TO: ${DESPESAS_SMOKE_GMAIL_TO:-}
+      DESPESAS_SMOKE_OUTLOOK_TO: ${DESPESAS_SMOKE_OUTLOOK_TO:?DESPESAS_SMOKE_OUTLOOK_TO must be set}
+      GOOGLE_GEMINI_MODEL: ${GOOGLE_GEMINI_MODEL:?GOOGLE_GEMINI_MODEL must be set}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /srv/despesas/n8n/files:/files
+    expose:
+      - "5678"
+    networks:
+      - despesas_internal
+
+volumes:
+  postgres_data:
+  n8n_data:
+
+networks:
+  despesas_internal:
