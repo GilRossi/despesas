@@ -4,6 +4,8 @@ import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -28,6 +30,10 @@ public class AppUser {
 	@Column(name = "password_hash", nullable = false, length = 255)
 	private String passwordHash;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "platform_role", nullable = false, length = 32)
+	private PlatformUserRole platformRole = PlatformUserRole.STANDARD_USER;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -41,9 +47,14 @@ public class AppUser {
 	}
 
 	public AppUser(String name, String email, String passwordHash) {
+		this(name, email, passwordHash, PlatformUserRole.STANDARD_USER);
+	}
+
+	public AppUser(String name, String email, String passwordHash, PlatformUserRole platformRole) {
 		this.name = name;
 		this.email = email;
 		this.passwordHash = passwordHash;
+		this.platformRole = platformRole;
 	}
 
 	public Long getId() {
@@ -80,6 +91,14 @@ public class AppUser {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	public PlatformUserRole getPlatformRole() {
+		return platformRole;
+	}
+
+	public void setPlatformRole(PlatformUserRole platformRole) {
+		this.platformRole = platformRole;
 	}
 
 	public Instant getUpdatedAt() {

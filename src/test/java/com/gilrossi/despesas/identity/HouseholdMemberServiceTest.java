@@ -95,4 +95,18 @@ class HouseholdMemberServiceTest {
 			))
 		);
 	}
+
+	@Test
+	void deve_rejeitar_quando_owner_tentar_criar_outro_owner() {
+		when(currentHouseholdProvider.requireHouseholdId()).thenReturn(10L);
+
+		assertThrows(IllegalArgumentException.class, () ->
+			service.create(new CreateHouseholdMemberCommand(
+				"Bia",
+				"bia-owner@local.invalid",
+				"senha123",
+				HouseholdMemberRole.OWNER
+			))
+		);
+	}
 }

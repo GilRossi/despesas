@@ -37,7 +37,7 @@ public class HouseholdMemberController {
 			request.name(),
 			request.email(),
 			request.password(),
-			request.role()
+			null
 		));
 		return ResponseEntity.status(201).body(new ApiResponse<>(response));
 	}
