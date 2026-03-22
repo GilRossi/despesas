@@ -70,9 +70,11 @@ O projeto usa estas variáveis no runtime:
 - `DB_URL`
 - `DB_USERNAME`
 - `DB_PASSWORD`
-- `SHOW_SQL`
+- `APP_SHOW_SQL`
 - `APP_OPERATIONAL_EMAIL_INGESTION_TOKEN`
 - `APP_FRONTEND_WEB_DIST`
+- `APP_ENV`
+- `API_BASE_URL`
 - `FINANCIAL_ASSISTANT_AI_ENABLED`
 - `DEEPSEEK_API_KEY`
 - `DEEPSEEK_BASE_URL`
@@ -82,12 +84,32 @@ O projeto usa estas variáveis no runtime:
 - `DEEPSEEK_TIMEOUT_SECONDS`
 - `DEEPSEEK_MAX_RETRIES`
 
-Configuração padrão em [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties):
+Estrutura oficial externa:
+
+- `~/envs/despesas/local/backend.env`
+- `~/envs/despesas/local/postgres.env`
+- `~/envs/despesas/local/n8n.env`
+- `~/envs/despesas/local/google.env`
+- `~/envs/despesas/local/microsoft.env`
+- `~/envs/despesas/prod/backend.env`
+- `~/envs/despesas/prod/postgres.env`
+- `~/envs/despesas/prod/n8n.env`
+- `~/envs/despesas/prod/google.env`
+- `~/envs/despesas/prod/microsoft.env`
+
+Leitura de runtime no backend:
+
+- [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties)
+- [`load-governed-env.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/load-governed-env.sh)
+- [`run-local-postgres.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-postgres.sh)
+- [`run-local-backend.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-backend.sh)
+
+Configuração relevante em [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties):
 
 - `DB_URL` default: `jdbc:postgresql://localhost:5432/despesasdb`
 - `DB_USERNAME` default: `postgres`
 - `DB_PASSWORD` default: `postgres`
-- `SHOW_SQL` default: `false`
+- `APP_SHOW_SQL` default: `false`
 
 Importante:
 
@@ -98,28 +120,16 @@ Importante:
 - O assistente conversacional só usa provedor externo se `FINANCIAL_ASSISTANT_AI_ENABLED=true` e `DEEPSEEK_API_KEY` estiver configurada.
 - Sem IA configurada, o endpoint conversacional continua funcional via fallback determinístico.
 
-Exemplo de execução local:
+PostgreSQL local governado:
 
 ```bash
-APP_SECURITY_TOKEN_SECRET=dev-secret-local ./mvnw spring-boot:run
+scripts/runtime/run-local-postgres.sh
 ```
 
-Exemplo com o Flutter Web oficial servindo `/` no mesmo processo:
+Backend local governado:
 
 ```bash
-APP_SECURITY_TOKEN_SECRET=dev-secret-local \
-APP_FRONTEND_WEB_DIST=file:/home/gil/StudioProjects/despesas_frontend/build/web/ \
-./mvnw spring-boot:run
-```
-
-Se quiser apontar para outro banco:
-
-```bash
-APP_SECURITY_TOKEN_SECRET=dev-secret-local \
-DB_URL=jdbc:postgresql://localhost:5432/despesasdb \
-DB_USERNAME=postgres \
-DB_PASSWORD=postgres \
-./mvnw spring-boot:run
+scripts/runtime/run-local-backend.sh
 ```
 
 ### 3. Acesse a aplicação
@@ -127,6 +137,20 @@ DB_PASSWORD=postgres \
 - Front-door Flutter Web: `http://localhost:8080/`
 - API: `http://localhost:8080/api/v1`
 - Healthcheck: `http://localhost:8080/actuator/health`
+
+### Ordem recomendada do runtime local governado
+
+1. `scripts/runtime/run-local-postgres.sh`
+2. `scripts/runtime/run-local-backend.sh`
+3. `cd /home/gil/StudioProjects/despesas_frontend && scripts/build_local_web.sh`
+4. `cd /home/gil/n8n-local && scripts/run_local.sh`
+5. opcional para Android físico: `cd /home/gil/StudioProjects/despesas_frontend && scripts/run_local_android.sh`
+
+Observacoes:
+
+- o backend local usa os envs oficiais em `~/envs/despesas/local`
+- o n8n local usa envs externas e storage criptografado proprio
+- o repo privado do n8n documenta o bootstrap/restauracao de credenciais em `/home/gil/n8n-local/projects/despesas/docs/credential-bootstrap.md`
 
 ## Como rodar os testes
 

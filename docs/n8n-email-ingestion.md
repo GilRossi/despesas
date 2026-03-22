@@ -63,7 +63,7 @@ Campos suportados:
 - `desiredDecision`
 
 Exemplos versionados:
-- [docs/examples/email-ingestion-candidates.json](/home/gil/workspace/claude/despesas/docs/examples/email-ingestion-candidates.json)
+- payloads de candidato devem seguir o contrato do backend `despesas`
 
 ## Decisao Final do Backend
 
@@ -93,12 +93,12 @@ Regras principais:
 
 Arquivos exportaveis da V1:
 
-- [email-ingestion-candidate-processor-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-candidate-processor-v1.json)
-- [email-ingestion-replay-harness-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-replay-harness-v1.json)
-- [email-ingestion-gmail-trigger-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-gmail-trigger-v1.json)
-- [email-ingestion-outlook-trigger-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-outlook-trigger-v1.json)
-- [email-ingestion-mailbox-bootstrap-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-mailbox-bootstrap-v1.json)
-- [email-ingestion-outlook-live-sender-v1.json](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1/email-ingestion-outlook-live-sender-v1.json)
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-candidate-processor-v1.json`
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-replay-harness-v1.json`
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-gmail-trigger-v1.json`
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-outlook-trigger-v1.json`
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-mailbox-bootstrap-v1.json`
+- `projects/despesas/workflows/email-ingestion-v1/email-ingestion-outlook-live-sender-v1.json`
 
 Geracao local:
 
@@ -137,9 +137,9 @@ Papel de cada workflow:
 
 Source of truth operacional:
 
-- os JSONs versionados em [`n8n/workflows/email-ingestion-v1`](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1) sao a definicao canonica
-- `/home/gil/n8n-local` e apenas workspace de runtime local, credenciais e execucao
-- nao edite o runtime local como se ele fosse a origem oficial do produto
+- os JSONs versionados em `projects/despesas/workflows/email-ingestion-v1` sao a definicao canonica
+- o runtime local usa `compose.yaml` e envs externas, mas nao e a origem oficial do produto
+- credenciais reais ficam fora do Git e fora dos exports versionados
 
 ## Onde a IA Entra
 
@@ -190,12 +190,20 @@ Observacao:
 - os JSONs versionados nao carregam segredos nem IDs locais de credenciais
 - depois de importar, abra os nodes que precisam de credencial e faça o binding local
 
-### Variaveis sugeridas no n8n
+### Variaveis governadas no n8n
 
 - `DESPESAS_BACKEND_BASE_URL`
 - `DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN`
 - `DESPESAS_GMAIL_SOURCE_ACCOUNT`
 - `DESPESAS_OUTLOOK_SOURCE_ACCOUNT`
+- `DESPESAS_SMOKE_GMAIL_TO`
+- `DESPESAS_SMOKE_OUTLOOK_TO`
+- `N8N_HOST`
+- `N8N_PROTOCOL`
+- `N8N_PORT`
+- `WEBHOOK_URL`
+- `N8N_PROXY_HOPS`
+- `GOOGLE_GEMINI_MODEL`
 
 ## Marcacoes Reais de Caixa
 

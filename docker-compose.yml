@@ -3,11 +3,11 @@ services:
     image: postgres:15
     container_name: despesas-postgres
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:?DB_PORT must be set}:5432"
     environment:
-      POSTGRES_DB: ${DB_NAME:-despesasdb}
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
