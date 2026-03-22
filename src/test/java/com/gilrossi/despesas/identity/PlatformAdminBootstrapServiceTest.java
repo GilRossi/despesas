@@ -32,7 +32,7 @@ class PlatformAdminBootstrapServiceTest {
 		service = new PlatformAdminBootstrapService(
 			appUserRepository,
 			passwordEncoder,
-			new PlatformAdminBootstrapProperties("Platform Admin", "admin@local.invalid", "senha123")
+			new PlatformAdminBootstrapProperties(true, "Platform Admin", "admin@local.invalid", "senha123")
 		);
 	}
 
@@ -62,7 +62,7 @@ class PlatformAdminBootstrapServiceTest {
 		service = new PlatformAdminBootstrapService(
 			appUserRepository,
 			passwordEncoder,
-			new PlatformAdminBootstrapProperties("Platform Admin", "", "")
+			new PlatformAdminBootstrapProperties(true, "Platform Admin", "", "")
 		);
 		when(appUserRepository.existsByPlatformRoleAndDeletedAtIsNull(PlatformUserRole.PLATFORM_ADMIN)).thenReturn(false);
 
@@ -81,5 +81,19 @@ class PlatformAdminBootstrapServiceTest {
 		IllegalStateException exception = assertThrows(IllegalStateException.class, service::bootstrapIfNeeded);
 
 		assertEquals("Bootstrap admin email already belongs to a non-admin user", exception.getMessage());
+	}
+
+	@Test
+	void deve_ignorar_bootstrap_quando_flag_estiver_desabilitada() {
+		service = new PlatformAdminBootstrapService(
+			appUserRepository,
+			passwordEncoder,
+			new PlatformAdminBootstrapProperties(false, "Platform Admin", "admin@local.invalid", "senha123")
+		);
+
+		service.bootstrapIfNeeded();
+
+		verify(appUserRepository, never()).existsByPlatformRoleAndDeletedAtIsNull(any());
+		verify(appUserRepository, never()).save(any(AppUser.class));
 	}
 }

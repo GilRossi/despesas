@@ -365,6 +365,7 @@ Sem esse alinhamento, o n8n local pode ficar com draft/importado valido na base,
 Observacoes operacionais do runtime local:
 
 - `N8N_RUNNERS_ENABLED` nao e mais necessario nas versoes atuais e deve ser removido do compose local
+- workflows que usam `$env` dentro de `Code` nodes exigem `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` no runtime do n8n
 - o warning de Python runner em modo interno nao bloqueia esta V1 porque os workflows oficiais usam JS Code nodes, nao Python nodes
 
 ## Lacunas Planejadas
