@@ -489,8 +489,8 @@ NORMALIZE_ENVELOPE_CODE = dedent(
 	return [{
 	  json: {
 	    ...payload,
-	    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $vars.DESPESAS_BACKEND_BASE_URL || '',
-	    operationalToken: payload.operationalToken || envelope.operationalToken || $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
+    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $env.DESPESAS_BACKEND_BASE_URL || '',
+    operationalToken: payload.operationalToken || envelope.operationalToken || $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
 	  },
 	}];
 	"""
@@ -718,8 +718,8 @@ REPLAY_SAMPLE_CODE = dedent(
 
 const base = samples[scenario] || samples.recurringBill;
 const processorBaseUrl = incoming.processorBaseUrl
-  || $vars.WEBHOOK_URL
-  || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`;
+  || $env.WEBHOOK_URL
+  || `${$env.N8N_PROTOCOL || 'http'}://${$env.N8N_HOST || 'localhost'}:${$env.N8N_PORT || '5678'}`;
 return [{
   json: {
     processorBaseUrl,
@@ -741,8 +741,8 @@ FORWARD_TO_PROCESSOR_CODE = dedent(
 	for (const entry of $input.all()) {
 	  const item = entry.json;
 	  const processorBaseUrl = item.processorBaseUrl
-	    || $vars.WEBHOOK_URL
-	    || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`;
+    || $env.WEBHOOK_URL
+    || `${$env.N8N_PROTOCOL || 'http'}://${$env.N8N_HOST || 'localhost'}:${$env.N8N_PORT || '5678'}`;
 	  const processorUrl = `${processorBaseUrl.replace(/\\/$/, '')}/webhook/email-ingestion-process-v1`;
 
 	  try {
@@ -817,10 +817,10 @@ GMAIL_PREPARE_CODE = dedent(
 
 	  return {
 	    json: {
-	      processorBaseUrl: $vars.WEBHOOK_URL || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`,
+      processorBaseUrl: $env.WEBHOOK_URL || `${$env.N8N_PROTOCOL || 'http'}://${$env.N8N_HOST || 'localhost'}:${$env.N8N_PORT || '5678'}`,
 	      processorPayload: {
 	        channel: 'gmail',
-	        sourceAccount: $vars.DESPESAS_GMAIL_SOURCE_ACCOUNT || findHeader('Delivered-To') || findHeader('To') || '',
+        sourceAccount: $env.DESPESAS_GMAIL_SOURCE_ACCOUNT || findHeader('Delivered-To') || findHeader('To') || '',
 	        externalMessageId: item.messageId || item.id || '',
 	        sender: normalizeSender(item.from) || findHeader('From') || '',
 	        subject: item.subject || findHeader('Subject') || '',
@@ -829,8 +829,8 @@ GMAIL_PREPARE_CODE = dedent(
 	        htmlBody: item.html || '',
 	        merchantOrPayee: '',
 	        currency: 'BRL',
-	        backendBaseUrl: $vars.DESPESAS_BACKEND_BASE_URL || '',
-	        operationalToken: $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
+        backendBaseUrl: $env.DESPESAS_BACKEND_BASE_URL || '',
+        operationalToken: $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
 	        mailbox: {
 	          provider: 'gmail',
 	          messageId: item.id || item.messageId || '',
@@ -851,10 +851,10 @@ OUTLOOK_PREPARE_CODE = dedent(
 
 	  return {
 	    json: {
-	      processorBaseUrl: $vars.WEBHOOK_URL || `${$vars.N8N_PROTOCOL || 'http'}://${$vars.N8N_HOST || 'localhost'}:${$vars.N8N_PORT || '5678'}`,
+      processorBaseUrl: $env.WEBHOOK_URL || `${$env.N8N_PROTOCOL || 'http'}://${$env.N8N_HOST || 'localhost'}:${$env.N8N_PORT || '5678'}`,
 	      processorPayload: {
 	        channel: 'outlook',
-	        sourceAccount: $vars.DESPESAS_OUTLOOK_SOURCE_ACCOUNT || '',
+        sourceAccount: $env.DESPESAS_OUTLOOK_SOURCE_ACCOUNT || '',
 	        externalMessageId: item.id || item.internetMessageId || '',
 	        sender: fromAddress,
 	        subject: item.subject || '',
@@ -863,8 +863,8 @@ OUTLOOK_PREPARE_CODE = dedent(
 	        htmlBody: item.body ? item.body.content : '',
 	        merchantOrPayee: '',
 	        currency: 'BRL',
-	        backendBaseUrl: $vars.DESPESAS_BACKEND_BASE_URL || '',
-	        operationalToken: $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
+        backendBaseUrl: $env.DESPESAS_BACKEND_BASE_URL || '',
+        operationalToken: $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
 	        mailbox: {
 	          provider: 'outlook',
 	          messageId: item.id || '',
@@ -1080,8 +1080,8 @@ LIVE_SENDER_CODE = dedent(
 	  ? incoming.batchTag.trim()
 	  : new Date().toISOString().replace(/\\D/g, '').slice(0, 14);
 
-	const gmailTo = incoming.gmailTo || $vars.DESPESAS_SMOKE_GMAIL_TO || '';
-	const outlookTo = incoming.outlookTo || $vars.DESPESAS_SMOKE_OUTLOOK_TO || '';
+    const gmailTo = incoming.gmailTo || $env.DESPESAS_SMOKE_GMAIL_TO || '';
+    const outlookTo = incoming.outlookTo || $env.DESPESAS_SMOKE_OUTLOOK_TO || '';
 	const includeDuplicate = incoming.includeDuplicate !== false;
 
 	if (!gmailTo || !outlookTo) {
@@ -1361,7 +1361,7 @@ def information_extractor_node(node_id: str, position: list[int]) -> dict:
 def gemini_model_node(node_id: str, position: list[int]) -> dict:
 	return {
 		"parameters": {
-			"modelName": "={{ $vars.GOOGLE_GEMINI_MODEL || 'models/gemini-3.1-flash-lite-preview' }}",
+            "modelName": "={{ $env.GOOGLE_GEMINI_MODEL || 'models/gemini-3.1-flash-lite-preview' }}",
 			"options": {
 				"temperature": 0.1,
 			},

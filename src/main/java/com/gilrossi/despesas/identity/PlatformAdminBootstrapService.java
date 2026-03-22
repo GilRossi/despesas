@@ -37,6 +37,11 @@ public class PlatformAdminBootstrapService implements ApplicationRunner {
 
 	@Transactional
 	public void bootstrapIfNeeded() {
+		if (!properties.enabled()) {
+			LOGGER.info("Platform admin bootstrap disabled by configuration");
+			return;
+		}
+
 		if (appUserRepository.existsByPlatformRoleAndDeletedAtIsNull(PlatformUserRole.PLATFORM_ADMIN)) {
 			return;
 		}

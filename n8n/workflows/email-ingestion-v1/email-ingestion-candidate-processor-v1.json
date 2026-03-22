@@ -24,7 +24,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const envelope = $input.first().json;\nconst payload = envelope && typeof envelope.body === 'object' && envelope.body !== null\n  ? envelope.body\n  : envelope;\n\nreturn [{\n  json: {\n    ...payload,\n    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $vars.DESPESAS_BACKEND_BASE_URL || '',\n    operationalToken: payload.operationalToken || envelope.operationalToken || $vars.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',\n  },\n}];"
+        "jsCode": "\tconst envelope = $input.first().json;\n\tconst payload = envelope && typeof envelope.body === 'object' && envelope.body !== null\n\t  ? envelope.body\n\t  : envelope;\n\n\treturn [{\n\t  json: {\n\t    ...payload,\n    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $env.DESPESAS_BACKEND_BASE_URL || '',\n    operationalToken: payload.operationalToken || envelope.operationalToken || $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',\n\t  },\n\t}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -198,7 +198,7 @@
     },
     {
       "parameters": {
-        "modelName": "={{ $vars.GOOGLE_GEMINI_MODEL || 'models/gemini-3.1-flash-lite-preview' }}",
+        "modelName": "={{ $env.GOOGLE_GEMINI_MODEL || 'models/gemini-3.1-flash-lite-preview' }}",
         "options": {
           "temperature": 0.1
         }
