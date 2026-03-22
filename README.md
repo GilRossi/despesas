@@ -138,6 +138,20 @@ scripts/runtime/run-local-backend.sh
 - API: `http://localhost:8080/api/v1`
 - Healthcheck: `http://localhost:8080/actuator/health`
 
+### Ordem recomendada do runtime local governado
+
+1. `scripts/runtime/run-local-postgres.sh`
+2. `scripts/runtime/run-local-backend.sh`
+3. `cd /home/gil/StudioProjects/despesas_frontend && scripts/build_local_web.sh`
+4. `cd /home/gil/n8n-local && scripts/run_local.sh`
+5. opcional para Android físico: `cd /home/gil/StudioProjects/despesas_frontend && scripts/run_local_android.sh`
+
+Observacoes:
+
+- o backend local usa os envs oficiais em `~/envs/despesas/local`
+- o n8n local usa envs externas e storage criptografado proprio
+- o repo privado do n8n documenta o bootstrap/restauracao de credenciais em `/home/gil/n8n-local/projects/despesas/docs/credential-bootstrap.md`
+
 ## Como rodar os testes
 
 ### Suíte principal
