@@ -72,8 +72,7 @@ class HouseholdAuthorizationIntegrationTest {
 					{
 						"name":"Bia",
 						"email":"bia-household-api@local.invalid",
-						"password":"senha123",
-						"role":"MEMBER"
+						"password":"senha123"
 					}
 					"""))
 			.andExpect(status().isCreated())

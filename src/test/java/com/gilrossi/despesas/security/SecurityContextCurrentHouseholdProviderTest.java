@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
@@ -30,5 +31,21 @@ class SecurityContextCurrentHouseholdProviderTest {
 		SecurityContextCurrentHouseholdProvider provider = new SecurityContextCurrentHouseholdProvider(currentUserProvider);
 
 		assertEquals(11L, provider.requireHouseholdId());
+	}
+
+	@Test
+	void deve_rejeitar_usuario_sem_household_quando_fluxo_exigir_household() {
+		when(currentUserProvider.requireCurrentUser()).thenReturn(new AuthenticatedHouseholdUser(
+			7L,
+			null,
+			"PLATFORM_ADMIN",
+			"Admin",
+			"admin@local.invalid",
+			"{noop}senha"
+		));
+
+		SecurityContextCurrentHouseholdProvider provider = new SecurityContextCurrentHouseholdProvider(currentUserProvider);
+
+		assertThrows(IllegalStateException.class, provider::requireHouseholdId);
 	}
 }

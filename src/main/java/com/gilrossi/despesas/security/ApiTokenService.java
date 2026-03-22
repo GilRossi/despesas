@@ -13,8 +13,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.security.authentication.BadCredentialsException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gilrossi.despesas.identity.HouseholdMemberRole;
-
 public class ApiTokenService {
 
 	private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
@@ -58,7 +56,7 @@ public class ApiTokenService {
 			type.name(),
 			principal.getUserId(),
 			principal.getHouseholdId(),
-			principal.getRole().name(),
+			principal.getRole(),
 			principal.getDisplayName(),
 			principal.getUsername(),
 			expiresAt.getEpochSecond()
@@ -77,7 +75,7 @@ public class ApiTokenService {
 		return new AuthenticatedHouseholdUser(
 			payload.userId(),
 			payload.householdId(),
-			HouseholdMemberRole.valueOf(payload.role()),
+			payload.role(),
 			payload.name(),
 			payload.email(),
 			""

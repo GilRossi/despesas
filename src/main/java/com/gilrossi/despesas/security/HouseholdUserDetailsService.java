@@ -11,6 +11,7 @@ import com.gilrossi.despesas.identity.AppUser;
 import com.gilrossi.despesas.identity.AppUserRepository;
 import com.gilrossi.despesas.identity.HouseholdMember;
 import com.gilrossi.despesas.identity.HouseholdMemberRepository;
+import com.gilrossi.despesas.identity.PlatformUserRole;
 
 @Service
 public class HouseholdUserDetailsService implements UserDetailsService {
@@ -29,6 +30,9 @@ public class HouseholdUserDetailsService implements UserDetailsService {
 		String normalizedUsername = username == null ? null : username.trim().toLowerCase(Locale.ROOT);
 		AppUser user = appUserRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(normalizedUsername)
 			.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+		if (user.getPlatformRole() == PlatformUserRole.PLATFORM_ADMIN) {
+			return AuthenticatedHouseholdUser.platformAdmin(user);
+		}
 		HouseholdMember member = householdMemberRepository.findFirstActiveMembershipByUserId(user.getId())
 			.orElseThrow(() -> new UsernameNotFoundException("Household membership not found for user: " + username));
 		return AuthenticatedHouseholdUser.from(user, member);

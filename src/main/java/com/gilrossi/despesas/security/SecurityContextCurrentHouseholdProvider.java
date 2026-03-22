@@ -13,6 +13,10 @@ public class SecurityContextCurrentHouseholdProvider implements CurrentHousehold
 
 	@Override
 	public Long requireHouseholdId() {
-		return currentUserProvider.requireCurrentUser().getHouseholdId();
+		Long householdId = currentUserProvider.requireCurrentUser().getHouseholdId();
+		if (householdId == null) {
+			throw new IllegalStateException("Authenticated household membership is required");
+		}
+		return householdId;
 	}
 }

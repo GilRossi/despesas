@@ -5,6 +5,6 @@ public record AuthResponse(
 	Long householdId,
 	String email,
 	String name,
-	HouseholdMemberRole role
+	String role
 ) {
 }

@@ -95,8 +95,7 @@ class HouseholdIsolationIntegrationTest {
 					{
 					  "name":"Bia",
 					  "email":"bia-member@local.invalid",
-					  "password":"senha789",
-					  "role":"MEMBER"
+					  "password":"senha789"
 					}
 					"""))
 			.andExpect(status().isCreated());

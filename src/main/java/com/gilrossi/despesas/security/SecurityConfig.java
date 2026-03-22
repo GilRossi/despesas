@@ -16,10 +16,15 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.identity.PlatformAdminBootstrapProperties;
 
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({ApiSecurityProperties.class, OperationalEmailIngestionProperties.class})
+@EnableConfigurationProperties({
+	ApiSecurityProperties.class,
+	OperationalEmailIngestionProperties.class,
+	PlatformAdminBootstrapProperties.class
+})
 public class SecurityConfig {
 
 	@Bean
@@ -68,7 +73,6 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
 				.requestMatchers("/api/v1/operations/**").hasRole("OPERATIONAL_EMAIL_INGESTION")
 				.requestMatchers("/api/v1/auth/me").authenticated()

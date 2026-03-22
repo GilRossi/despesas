@@ -51,6 +51,9 @@ public class HouseholdMemberService {
 		String email = sanitizeEmail(command.email());
 		String password = command.password();
 		HouseholdMemberRole role = command.role() == null ? HouseholdMemberRole.MEMBER : command.role();
+		if (role != HouseholdMemberRole.MEMBER) {
+			throw new IllegalArgumentException("Only MEMBER can be created from the household members flow");
+		}
 
 		if (!StringUtils.hasText(name)) {
 			throw new IllegalArgumentException("name must not be blank");

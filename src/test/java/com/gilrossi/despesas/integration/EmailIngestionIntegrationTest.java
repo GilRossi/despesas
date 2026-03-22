@@ -88,8 +88,7 @@ class EmailIngestionIntegrationTest {
 					{
 					  "name":"Bia",
 					  "email":"source-member@local.invalid",
-					  "password":"senha123",
-					  "role":"MEMBER"
+					  "password":"senha123"
 					}
 					"""))
 			.andExpect(status().isCreated())

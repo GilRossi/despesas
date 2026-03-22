@@ -60,8 +60,7 @@ class HouseholdMemberControllerTest {
 					{
 						"name":"Bia",
 						"email":"bia@local.invalid",
-						"password":"senha123",
-						"role":"MEMBER"
+						"password":"senha123"
 					}
 					"""))
 			.andExpect(status().isCreated())

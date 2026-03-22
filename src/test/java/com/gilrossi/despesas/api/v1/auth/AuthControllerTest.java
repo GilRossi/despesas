@@ -20,8 +20,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.gilrossi.despesas.api.v1.shared.ApiExceptionHandler;
 import com.gilrossi.despesas.identity.AuthResponse;
-import com.gilrossi.despesas.identity.HouseholdMemberRole;
-import com.gilrossi.despesas.identity.RegistrationService;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
 import com.gilrossi.despesas.security.CurrentUserProvider;
 
@@ -32,9 +30,6 @@ class AuthControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;
-
-	@MockitoBean
-	private RegistrationService registrationService;
 
 	@MockitoBean
 	private CurrentUserProvider currentUserProvider;
@@ -50,7 +45,7 @@ class AuthControllerTest {
 			Instant.parse("2026-03-20T04:00:00Z"),
 			"refresh-token",
 			Instant.parse("2026-04-19T04:00:00Z"),
-			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", HouseholdMemberRole.OWNER)
+			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", "OWNER")
 		));
 
 		mockMvc.perform(post("/api/v1/auth/login")
@@ -92,7 +87,7 @@ class AuthControllerTest {
 			Instant.parse("2026-03-20T04:00:00Z"),
 			"novo-refresh-token",
 			Instant.parse("2026-04-19T04:00:00Z"),
-			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", HouseholdMemberRole.OWNER)
+			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", "OWNER")
 		));
 
 		mockMvc.perform(post("/api/v1/auth/refresh")
@@ -110,7 +105,7 @@ class AuthControllerTest {
 	@Test
 	void deve_retornar_usuario_corrente() throws Exception {
 		when(currentUserProvider.requireCurrentUser()).thenReturn(
-			new AuthenticatedHouseholdUser(1L, 10L, HouseholdMemberRole.OWNER, "Ana", "ana@local.invalid", "{noop}senha123")
+			new AuthenticatedHouseholdUser(1L, 10L, "OWNER", "Ana", "ana@local.invalid", "{noop}senha123")
 		);
 
 		mockMvc.perform(get("/api/v1/auth/me"))

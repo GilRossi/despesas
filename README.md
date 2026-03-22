@@ -17,7 +17,9 @@ Oferecer uma base consistente para controle de despesas domésticas, com separa�
 
 ## Funcionalidades implementadas
 
-- cadastro de usuário com criação de household
+- bootstrap controlado do primeiro `PLATFORM_ADMIN`
+- provisionamento autenticado de household + owner por `PLATFORM_ADMIN`
+- criação autenticada de member pelo `HOUSEHOLD_OWNER` do próprio household
 - bootstrap automático de catálogo inicial para household novo
 - login/refresh/me na API com Bearer token
 - gestão de membros do household via API
@@ -67,6 +69,9 @@ Por padrão, o container sobe como `despesas-postgres` em `localhost:5432`.
 O projeto usa estas variáveis no runtime:
 
 - `APP_SECURITY_TOKEN_SECRET`
+- `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME`
+- `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`
+- `APP_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD`
 - `DB_URL`
 - `DB_USERNAME`
 - `DB_PASSWORD`
@@ -216,11 +221,13 @@ O sistema trabalha com um modo oficial de autenticação:
 
 - contrato Bearer-only
 - endpoints públicos de auth:
-  - `POST /api/v1/auth/register`
   - `POST /api/v1/auth/login`
   - `POST /api/v1/auth/refresh`
 - endpoint autenticado:
   - `GET /api/v1/auth/me`
+- não existe cadastro público
+- o primeiro `PLATFORM_ADMIN` nasce por bootstrap controlado de ambiente
+- `POST /api/v1/admin/households` é restrito a `PLATFORM_ADMIN`
 - `httpBasic` não é mais aceito na API
 - o Flutter Web e o Flutter Mobile consomem o mesmo contrato
 

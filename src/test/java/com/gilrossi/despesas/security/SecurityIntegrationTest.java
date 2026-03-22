@@ -207,7 +207,7 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
-	void deve_registrar_usuario_e_household_via_api() throws Exception {
+	void deve_negar_signup_publico_via_api() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/register")
 				.contentType("application/json")
 				.content("""
@@ -218,14 +218,12 @@ class SecurityIntegrationTest {
 					  "householdName":"Casa da Carla"
 					}
 					"""))
-			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.data.email").value("carla@local.invalid"))
-			.andExpect(jsonPath("$.data.role").value("OWNER"))
-			.andExpect(jsonPath("$.data.householdId").value(greaterThanOrEqualTo(1)));
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
 
 	@Test
-	void deve_retornar_409_quando_registro_duplicado_via_api() throws Exception {
+	void deve_manter_signup_publico_inacessivel_mesmo_com_payload_duplicado() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/register")
 				.contentType("application/json")
 				.content("""
@@ -236,7 +234,7 @@ class SecurityIntegrationTest {
 					  "householdName":"Casa da Carla"
 					}
 					"""))
-			.andExpect(status().isCreated());
+			.andExpect(status().isUnauthorized());
 
 		mockMvc.perform(post("/api/v1/auth/register")
 				.contentType("application/json")
@@ -248,8 +246,8 @@ class SecurityIntegrationTest {
 					  "householdName":"Casa da Carla Outra"
 					}
 					"""))
-			.andExpect(status().isConflict())
-			.andExpect(jsonPath("$.code").value("CONFLICT"));
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
 
 	@Test
@@ -269,8 +267,7 @@ class SecurityIntegrationTest {
 					{
 					  "name":"Bia",
 					  "email":"bia-household@local.invalid",
-					  "password":"senha456",
-					  "role":"MEMBER"
+					  "password":"senha456"
 					}
 					"""))
 			.andExpect(status().isCreated())
@@ -295,8 +292,7 @@ class SecurityIntegrationTest {
 					{
 					  "name":"Bia",
 					  "email":"member-catalog@local.invalid",
-					  "password":"senha456",
-					  "role":"MEMBER"
+					  "password":"senha456"
 					}
 					"""))
 			.andExpect(status().isCreated());

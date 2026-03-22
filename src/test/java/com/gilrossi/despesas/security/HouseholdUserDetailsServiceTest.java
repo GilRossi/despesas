@@ -50,7 +50,7 @@ class HouseholdUserDetailsServiceTest {
 		AuthenticatedHouseholdUser principal = (AuthenticatedHouseholdUser) details;
 		assertThat(principal.getUserId()).isEqualTo(7L);
 		assertThat(principal.getHouseholdId()).isEqualTo(11L);
-		assertThat(principal.getRole()).isEqualTo(HouseholdMemberRole.OWNER);
+		assertThat(principal.getRole()).isEqualTo("OWNER");
 		assertThat(principal.getAuthorities()).extracting("authority").contains("ROLE_OWNER");
 	}
 }
