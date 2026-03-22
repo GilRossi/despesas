@@ -108,6 +108,7 @@ Leitura de runtime no backend:
 - [`load-governed-env.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/load-governed-env.sh)
 - [`run-local-postgres.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-postgres.sh)
 - [`run-local-backend.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-backend.sh)
+- [`production-runtime.md`](/home/gil/workspace/claude/despesas/docs/production-runtime.md)
 
 Configuração relevante em [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties):
 
@@ -135,6 +136,12 @@ Backend local governado:
 
 ```bash
 scripts/runtime/run-local-backend.sh
+```
+
+Validacao do runtime de producao, sem deploy:
+
+```bash
+scripts/runtime/validate-production-compose.sh
 ```
 
 ### 3. Acesse a aplicação
