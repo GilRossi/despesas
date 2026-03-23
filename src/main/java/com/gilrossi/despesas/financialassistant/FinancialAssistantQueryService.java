@@ -13,6 +13,8 @@ import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversatio
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationRequest;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationGateway;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantGatewayException;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 
 @Service
 public class FinancialAssistantQueryService {
@@ -26,6 +28,7 @@ public class FinancialAssistantQueryService {
 	private final FinancialAssistantRecommendationService recommendationService;
 	private final FinancialAssistantConversationGateway conversationGateway;
 	private final FinancialAssistantAuditLogger auditLogger;
+	private final AbuseProtectionService abuseProtectionService;
 
 	public FinancialAssistantQueryService(
 		FinancialAssistantIntentResolver intentResolver,
@@ -34,7 +37,8 @@ public class FinancialAssistantQueryService {
 		FinancialAssistantInsightsService insightsService,
 		FinancialAssistantRecommendationService recommendationService,
 		FinancialAssistantConversationGateway conversationGateway,
-		FinancialAssistantAuditLogger auditLogger
+		FinancialAssistantAuditLogger auditLogger,
+		AbuseProtectionService abuseProtectionService
 	) {
 		this.intentResolver = intentResolver;
 		this.accessContextProvider = accessContextProvider;
@@ -43,6 +47,7 @@ public class FinancialAssistantQueryService {
 		this.recommendationService = recommendationService;
 		this.conversationGateway = conversationGateway;
 		this.auditLogger = auditLogger;
+		this.abuseProtectionService = abuseProtectionService;
 	}
 
 	@Transactional(readOnly = true)
@@ -50,6 +55,12 @@ public class FinancialAssistantQueryService {
 		FinancialAssistantAccessContext context = null;
 		try {
 			context = accessContextProvider.requireContext();
+			try {
+				abuseProtectionService.checkAssistantQuery(context);
+			} catch (RateLimitExceededException exception) {
+				auditLogger.queryRateLimited(context, request.referenceMonth(), exception);
+				throw exception;
+			}
 			auditLogger.queryStarted(context, request.referenceMonth());
 			YearMonth referenceMonth = FinancialAssistantSupport.resolveReferenceMonth(request.referenceMonth());
 			ResolvedFinancialAssistantQuery resolved = intentResolver.resolve(request.question(), referenceMonth, context.householdId());
@@ -108,6 +119,8 @@ public class FinancialAssistantQueryService {
 			return response;
 		} catch (FinancialAssistantContextException exception) {
 			auditLogger.queryDenied(exception);
+			throw exception;
+		} catch (RateLimitExceededException exception) {
 			throw exception;
 		} catch (RuntimeException exception) {
 			auditLogger.queryFailed(context, exception);

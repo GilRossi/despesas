@@ -16,9 +16,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.audit.PersistedAuditEvent;
+import com.gilrossi.despesas.audit.PersistedAuditEventRepository;
 import com.gilrossi.despesas.identity.AppUser;
 import com.gilrossi.despesas.identity.AppUserRepository;
 import com.gilrossi.despesas.identity.PlatformUserRole;
+import com.gilrossi.despesas.ratelimit.RateLimitCounterRepository;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -35,6 +38,18 @@ class PlatformAdminAccessIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private PersistedAuditEventRepository persistedAuditEventRepository;
+
+	@Autowired
+	private RateLimitCounterRepository rateLimitCounterRepository;
+
+	@org.junit.jupiter.api.BeforeEach
+	void setUp() {
+		persistedAuditEventRepository.deleteAll();
+		rateLimitCounterRepository.deleteAll();
+	}
 
 	@Test
 	void deve_permitir_fluxo_admin_owner_member_sem_signup_publico() throws Exception {
@@ -135,6 +150,13 @@ class PlatformAdminAccessIntegrationTest {
 					"""))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+		assertThat(persistedAuditEventRepository.findAll())
+			.anyMatch(event -> "access_denied".equals(event.getEventType())
+				&& "/api/v1/household/members".equals(event.getRequestPath()));
+		assertThat(persistedAuditEventRepository.findAll())
+			.extracting(PersistedAuditEvent::getEventType)
+			.contains("access_denied");
 	}
 
 	private JsonNode login(String email, String password) throws Exception {

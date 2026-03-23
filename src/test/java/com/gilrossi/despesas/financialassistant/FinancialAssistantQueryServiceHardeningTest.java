@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationGateway;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantGatewayException;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -47,6 +48,9 @@ class FinancialAssistantQueryServiceHardeningTest {
 	@Mock
 	private FinancialAssistantConversationGateway conversationGateway;
 
+	@Mock
+	private AbuseProtectionService abuseProtectionService;
+
 	private FinancialAssistantAuditLogger auditLogger;
 
 	private FinancialAssistantQueryService service;
@@ -63,7 +67,8 @@ class FinancialAssistantQueryServiceHardeningTest {
 			insightsService,
 			recommendationService,
 			conversationGateway,
-			auditLogger
+			auditLogger,
+			abuseProtectionService
 		);
 		when(accessContextProvider.requireContext()).thenReturn(new FinancialAssistantAccessContext(7L, 11L, "OWNER"));
 		Logger logger = (Logger) LoggerFactory.getLogger(FinancialAssistantQueryService.class);

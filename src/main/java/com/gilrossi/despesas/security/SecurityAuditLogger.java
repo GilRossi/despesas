@@ -6,12 +6,23 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.gilrossi.despesas.audit.PersistedAuditEventCategory;
+import com.gilrossi.despesas.audit.PersistedAuditEventCommand;
+import com.gilrossi.despesas.audit.PersistedAuditEventRecorder;
+import com.gilrossi.despesas.audit.PersistedAuditEventStatus;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
+
 import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class SecurityAuditLogger {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SecurityAuditLogger.class);
+	private final PersistedAuditEventRecorder auditEventRecorder;
+
+	public SecurityAuditLogger(PersistedAuditEventRecorder auditEventRecorder) {
+		this.auditEventRecorder = auditEventRecorder;
+	}
 
 	public void loginSucceeded(AuthenticatedHouseholdUser principal) {
 		LOGGER.info(
@@ -21,6 +32,13 @@ public class SecurityAuditLogger {
 			principal.getHouseholdId(),
 			maskEmail(principal.getUsername())
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_login_success", PersistedAuditEventStatus.SUCCESS)
+			.userId(principal.getUserId())
+			.householdId(principal.getHouseholdId())
+			.actorRole(principal.getRole())
+			.primaryReference(maskEmail(principal.getUsername()))
+			.build());
 	}
 
 	public void loginFailed(String username, String reason) {
@@ -29,6 +47,11 @@ public class SecurityAuditLogger {
 			maskEmail(username),
 			normalize(reason)
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_login_failure", PersistedAuditEventStatus.FAILURE)
+			.primaryReference(maskEmail(username))
+			.detailCode(normalize(reason))
+			.build());
 	}
 
 	public void refreshSucceeded(AuthenticatedHouseholdUser principal, String tokenId, String familyId) {
@@ -40,6 +63,14 @@ public class SecurityAuditLogger {
 			normalize(tokenId),
 			normalize(familyId)
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_refresh_success", PersistedAuditEventStatus.SUCCESS)
+			.userId(principal.getUserId())
+			.householdId(principal.getHouseholdId())
+			.actorRole(principal.getRole())
+			.primaryReference(normalize(tokenId))
+			.secondaryReference(normalize(familyId))
+			.build());
 	}
 
 	public void refreshRejected(String tokenId, String familyId, Long userId, String reason) {
@@ -50,6 +81,13 @@ public class SecurityAuditLogger {
 			normalize(familyId),
 			normalize(reason)
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_refresh_rejected", PersistedAuditEventStatus.REJECTED)
+			.userId(userId)
+			.primaryReference(normalize(tokenId))
+			.secondaryReference(normalize(familyId))
+			.detailCode(normalize(reason))
+			.build());
 	}
 
 	public void logoutSucceeded(AuthenticatedHouseholdUser principal, String tokenId, String familyId, int revokedTokens) {
@@ -62,6 +100,53 @@ public class SecurityAuditLogger {
 			normalize(familyId),
 			revokedTokens
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_logout_success", PersistedAuditEventStatus.SUCCESS)
+			.userId(principal.getUserId())
+			.householdId(principal.getHouseholdId())
+			.actorRole(principal.getRole())
+			.primaryReference(normalize(tokenId))
+			.secondaryReference(normalize(familyId))
+			.safeContext("revokedTokens", revokedTokens)
+			.build());
+	}
+
+	public void loginRateLimited(String username, RateLimitExceededException exception) {
+		LOGGER.warn(
+			"event=auth_login_rate_limited email={} retryAfterSeconds={} maxRequests={} windowSeconds={}",
+			maskEmail(username),
+			exception.getRetryAfterSeconds(),
+			exception.getMaxRequests(),
+			exception.getWindowSeconds()
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_login_rate_limited", PersistedAuditEventStatus.LIMITED)
+			.primaryReference(maskEmail(username))
+			.detailCode(exception.getScope().name())
+			.safeContext("retryAfterSeconds", exception.getRetryAfterSeconds())
+			.safeContext("maxRequests", exception.getMaxRequests())
+			.safeContext("windowSeconds", exception.getWindowSeconds())
+			.build());
+	}
+
+	public void refreshRateLimited(Long userId, String familyId, RateLimitExceededException exception) {
+		LOGGER.warn(
+			"event=auth_refresh_rate_limited userId={} familyId={} retryAfterSeconds={} maxRequests={} windowSeconds={}",
+			userId,
+			normalize(familyId),
+			exception.getRetryAfterSeconds(),
+			exception.getMaxRequests(),
+			exception.getWindowSeconds()
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_refresh_rate_limited", PersistedAuditEventStatus.LIMITED)
+			.userId(userId)
+			.secondaryReference(normalize(familyId))
+			.detailCode(exception.getScope().name())
+			.safeContext("retryAfterSeconds", exception.getRetryAfterSeconds())
+			.safeContext("maxRequests", exception.getMaxRequests())
+			.safeContext("windowSeconds", exception.getWindowSeconds())
+			.build());
 	}
 
 	public void accessDenied(HttpServletRequest request) {
@@ -76,6 +161,14 @@ public class SecurityAuditLogger {
 				user.getRole(),
 				user.getHouseholdId()
 			);
+			auditEventRecorder.recordSafely(PersistedAuditEventCommand
+				.event(PersistedAuditEventCategory.ACCESS, "access_denied", PersistedAuditEventStatus.DENIED)
+				.userId(user.getUserId())
+				.householdId(user.getHouseholdId())
+				.actorRole(user.getRole())
+				.requestMethod(request.getMethod())
+				.requestPath(request.getRequestURI())
+				.build());
 			return;
 		}
 		LOGGER.warn(
@@ -84,6 +177,12 @@ public class SecurityAuditLogger {
 			request.getRequestURI(),
 			authentication == null ? "anonymous" : normalize(authentication.getName())
 		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.ACCESS, "access_denied", PersistedAuditEventStatus.DENIED)
+			.requestMethod(request.getMethod())
+			.requestPath(request.getRequestURI())
+			.primaryReference(authentication == null ? "anonymous" : normalize(authentication.getName()))
+			.build());
 	}
 
 	private String maskEmail(String email) {

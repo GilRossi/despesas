@@ -19,8 +19,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.audit.PersistedAuditEvent;
+import com.gilrossi.despesas.audit.PersistedAuditEventRepository;
 import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationService;
+import com.gilrossi.despesas.ratelimit.RateLimitCounterRepository;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -42,10 +45,18 @@ class RefreshTokenLifecycleIntegrationTest {
 	@Autowired
 	private RefreshTokenRecordRepository refreshTokenRecordRepository;
 
+	@Autowired
+	private PersistedAuditEventRepository persistedAuditEventRepository;
+
+	@Autowired
+	private RateLimitCounterRepository rateLimitCounterRepository;
+
 	private ListAppender<ILoggingEvent> logAppender;
 
 	@BeforeEach
 	void setUp() {
+		persistedAuditEventRepository.deleteAll();
+		rateLimitCounterRepository.deleteAll();
 		Logger logger = (Logger) LoggerFactory.getLogger(SecurityAuditLogger.class);
 		logAppender = new ListAppender<>();
 		logAppender.start();
@@ -117,6 +128,10 @@ class RefreshTokenLifecycleIntegrationTest {
 			List.of("event=auth_login_success", "event=auth_refresh_success", "event=auth_logout_success", "event=auth_refresh_rejected"),
 			List.of(initialRefreshToken, rotatedRefreshToken)
 		);
+		assertPersistedAuditEventsWithoutSecrets(
+			List.of("auth_login_success", "auth_refresh_success", "auth_logout_success", "auth_refresh_rejected"),
+			List.of(initialRefreshToken, rotatedRefreshToken, "senha123")
+		);
 	}
 
 	@Test
@@ -155,6 +170,10 @@ class RefreshTokenLifecycleIntegrationTest {
 		assertAuditEventsWithoutRawTokens(
 			List.of("event=auth_refresh_success", "event=auth_refresh_rejected", "reason=reuse_detected"),
 			List.of(initialRefreshToken, rotatedRefreshToken)
+		);
+		assertPersistedAuditEventsWithoutSecrets(
+			List.of("auth_refresh_success", "auth_refresh_rejected"),
+			List.of(initialRefreshToken, rotatedRefreshToken, "senha123")
 		);
 	}
 
@@ -214,5 +233,19 @@ class RefreshTokenLifecycleIntegrationTest {
 		for (String forbiddenFragment : forbiddenFragments) {
 			assertThat(messages).noneMatch(message -> message.contains(forbiddenFragment));
 		}
+	}
+
+	private void assertPersistedAuditEventsWithoutSecrets(List<String> expectedEventTypes, List<String> forbiddenFragments) {
+		List<PersistedAuditEvent> events = persistedAuditEventRepository.findAll();
+		assertThat(events).extracting(PersistedAuditEvent::getEventType).containsAll(expectedEventTypes);
+		for (String forbiddenFragment : forbiddenFragments) {
+			assertThat(events).noneMatch(event -> contains(event.getPrimaryReference(), forbiddenFragment));
+			assertThat(events).noneMatch(event -> contains(event.getSecondaryReference(), forbiddenFragment));
+			assertThat(events).noneMatch(event -> contains(event.getSafeContextJson(), forbiddenFragment));
+		}
+	}
+
+	private boolean contains(String value, String fragment) {
+		return value != null && fragment != null && value.contains(fragment);
 	}
 }

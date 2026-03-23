@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationRequest;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationResult;
 import com.gilrossi.despesas.financialassistant.ai.FinancialAssistantConversationGateway;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
 
 @ExtendWith(MockitoExtension.class)
 class FinancialAssistantQueryServiceTest {
@@ -47,6 +48,9 @@ class FinancialAssistantQueryServiceTest {
 	@Mock
 	private FinancialAssistantAuditLogger auditLogger;
 
+	@Mock
+	private AbuseProtectionService abuseProtectionService;
+
 	private FinancialAssistantQueryService service;
 
 	@BeforeEach
@@ -58,7 +62,8 @@ class FinancialAssistantQueryServiceTest {
 			insightsService,
 			recommendationService,
 			conversationGateway,
-			auditLogger
+			auditLogger,
+			abuseProtectionService
 		);
 		when(accessContextProvider.requireContext()).thenReturn(new FinancialAssistantAccessContext(7L, 11L, "OWNER"));
 	}

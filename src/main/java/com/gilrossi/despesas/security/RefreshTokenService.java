@@ -16,6 +16,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
+
 @Service
 public class RefreshTokenService {
 
@@ -27,6 +30,7 @@ public class RefreshTokenService {
 	private final PasswordEncoder passwordEncoder;
 	private final HouseholdUserDetailsService householdUserDetailsService;
 	private final SecurityAuditLogger securityAuditLogger;
+	private final AbuseProtectionService abuseProtectionService;
 	private final Clock clock;
 	private final SecureRandom secureRandom;
 
@@ -35,13 +39,15 @@ public class RefreshTokenService {
 		RefreshTokenRecordRepository refreshTokenRecordRepository,
 		PasswordEncoder passwordEncoder,
 		HouseholdUserDetailsService householdUserDetailsService,
-		SecurityAuditLogger securityAuditLogger
+		SecurityAuditLogger securityAuditLogger,
+		AbuseProtectionService abuseProtectionService
 	) {
 		this(
 			refreshTokenRecordRepository,
 			passwordEncoder,
 			householdUserDetailsService,
 			securityAuditLogger,
+			abuseProtectionService,
 			Clock.systemUTC(),
 			new SecureRandom()
 		);
@@ -52,6 +58,7 @@ public class RefreshTokenService {
 		PasswordEncoder passwordEncoder,
 		HouseholdUserDetailsService householdUserDetailsService,
 		SecurityAuditLogger securityAuditLogger,
+		AbuseProtectionService abuseProtectionService,
 		Clock clock,
 		SecureRandom secureRandom
 	) {
@@ -59,6 +66,7 @@ public class RefreshTokenService {
 		this.passwordEncoder = passwordEncoder;
 		this.householdUserDetailsService = householdUserDetailsService;
 		this.securityAuditLogger = securityAuditLogger;
+		this.abuseProtectionService = abuseProtectionService;
 		this.clock = clock;
 		this.secureRandom = secureRandom;
 	}
@@ -87,6 +95,12 @@ public class RefreshTokenService {
 		}
 
 		AuthenticatedHouseholdUser principal = loadActivePrincipal(current, now);
+		try {
+			abuseProtectionService.checkAuthRefresh(principal.getUserId(), current.getFamilyId());
+		} catch (RateLimitExceededException exception) {
+			securityAuditLogger.refreshRateLimited(principal.getUserId(), current.getFamilyId(), exception);
+			throw exception;
+		}
 		IssuedRefreshToken replacement = issue(current.getUserId(), current.getFamilyId(), now);
 		current.markRotated(replacement.tokenId(), now);
 		securityAuditLogger.refreshSucceeded(principal, replacement.tokenId(), replacement.familyId());
