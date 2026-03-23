@@ -38,6 +38,12 @@ public class AuthController {
 		return new ApiResponse<>(mobileAuthService.refresh(request));
 	}
 
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
+		mobileAuthService.logout(currentUserProvider.requireCurrentUser(), request);
+		return ResponseEntity.noContent().build();
+	}
+
 	@GetMapping("/me")
 	public ApiResponse<AuthResponse> me() {
 		var principal = currentUserProvider.requireCurrentUser();

@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.api.v1.shared;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,9 +20,18 @@ import com.gilrossi.despesas.emailingestion.EmailIngestionReviewNotFoundExceptio
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
+import com.gilrossi.despesas.security.SecurityAuditLogger;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice(basePackages = "com.gilrossi.despesas.api.v1")
 public class ApiExceptionHandler {
+
+	private final SecurityAuditLogger securityAuditLogger;
+
+	public ApiExceptionHandler(ObjectProvider<SecurityAuditLogger> securityAuditLoggerProvider) {
+		this.securityAuditLogger = securityAuditLoggerProvider.getIfAvailable();
+	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public org.springframework.http.ResponseEntity<ApiErrorResponse> validation(MethodArgumentNotValidException exception) {
@@ -39,7 +49,10 @@ public class ApiExceptionHandler {
 	}
 
 	@ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> forbidden(Exception exception) {
+	public org.springframework.http.ResponseEntity<ApiErrorResponse> forbidden(Exception exception, HttpServletRequest request) {
+		if (securityAuditLogger != null) {
+			securityAuditLogger.accessDenied(request);
+		}
 		return ApiErrorResponses.forbidden("Access denied");
 	}
 

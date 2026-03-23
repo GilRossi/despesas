@@ -30,11 +30,22 @@ public class HouseholdUserDetailsService implements UserDetailsService {
 		String normalizedUsername = username == null ? null : username.trim().toLowerCase(Locale.ROOT);
 		AppUser user = appUserRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(normalizedUsername)
 			.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+		return toAuthenticatedUser(user, username);
+	}
+
+	@Transactional(readOnly = true)
+	public AuthenticatedHouseholdUser loadUserById(Long userId) {
+		AppUser user = appUserRepository.findByIdAndDeletedAtIsNull(userId)
+			.orElseThrow(() -> new UsernameNotFoundException("User not found for id: " + userId));
+		return toAuthenticatedUser(user, String.valueOf(userId));
+	}
+
+	private AuthenticatedHouseholdUser toAuthenticatedUser(AppUser user, String lookupReference) {
 		if (user.getPlatformRole() == PlatformUserRole.PLATFORM_ADMIN) {
 			return AuthenticatedHouseholdUser.platformAdmin(user);
 		}
 		HouseholdMember member = householdMemberRepository.findFirstActiveMembershipByUserId(user.getId())
-			.orElseThrow(() -> new UsernameNotFoundException("Household membership not found for user: " + username));
+			.orElseThrow(() -> new UsernameNotFoundException("Household membership not found for user: " + lookupReference));
 		return AuthenticatedHouseholdUser.from(user, member);
 	}
 }
