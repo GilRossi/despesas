@@ -29,14 +29,20 @@ Objetivo:
 - `POST /api/v1/operations/email-ingestions`
 
 Uso:
-- `Authorization: Bearer <APP_OPERATIONAL_EMAIL_INGESTION_TOKEN>`
+- headers assinados:
+  - `X-Operational-Key-Id`
+  - `X-Operational-Timestamp`
+  - `X-Operational-Nonce`
+  - `X-Operational-Body-SHA256`
+  - `X-Operational-Signature`
 - endpoint operacional dedicado, sem acoplamento direto ao n8n
 
 Objetivo:
 - receber candidatos estruturados
-- validar payload
+- validar assinatura, janela temporal, nonce e body hash antes do processamento
+- rejeitar payload que tente induzir `householdId`
 - deduplicar
-- resolver household
+- resolver household apenas a partir do `sourceAccount` mapeado no backend
 - decidir entre `AUTO_IMPORTED`, `REVIEW_REQUIRED` e `IGNORED`
 
 ## Payload Minimo do n8n
@@ -137,9 +143,9 @@ Papel de cada workflow:
 
 Source of truth operacional:
 
-- o repositório privado `/home/gil/n8n-local` e a definicao canonica dos workflows, docs operacionais e scripts seguros do n8n
-- a arvore `n8n/workflows/email-ingestion-v1` neste repositório backend e apenas um mirror/snapshot documental para referencia do ecossistema
-- o runtime local usa `compose.yaml` e envs externas, mas nao redefine a origem oficial do produto
+- os JSONs versionados em `projects/despesas/workflows/email-ingestion-v1` neste repositório sao a definicao canonica
+- qualquer copia desses JSONs no repositório backend deve ser tratada apenas como mirror/snapshot operacional
+- o runtime local usa `compose.yaml` e envs externas, mas nao muda a origem oficial do produto
 - credenciais reais ficam fora do Git e fora dos exports versionados
 
 ## Onde a IA Entra
@@ -194,7 +200,8 @@ Observacao:
 ### Variaveis governadas no n8n
 
 - `DESPESAS_BACKEND_BASE_URL`
-- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN`
+- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_KEY_ID`
+- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_SECRET`
 - `DESPESAS_GMAIL_SOURCE_ACCOUNT`
 - `DESPESAS_OUTLOOK_SOURCE_ACCOUNT`
 - `DESPESAS_SMOKE_GMAIL_TO`
@@ -204,6 +211,7 @@ Observacao:
 - `N8N_PORT`
 - `WEBHOOK_URL`
 - `N8N_PROXY_HOPS`
+- `NODE_FUNCTION_ALLOW_BUILTIN`
 - `GOOGLE_GEMINI_MODEL`
 
 ## Marcacoes Reais de Caixa
@@ -234,7 +242,10 @@ As labels e pastas sao criadas pelo workflow `Mailbox Bootstrap V1`.
 Configurar no backend:
 
 - `APP_SECURITY_TOKEN_SECRET`
-- `APP_OPERATIONAL_EMAIL_INGESTION_TOKEN`
+- `APP_OPERATIONAL_EMAIL_INGESTION_KEY_ID`
+- `APP_OPERATIONAL_EMAIL_INGESTION_SECRET`
+- `APP_OPERATIONAL_EMAIL_INGESTION_PREVIOUS_KEY_ID` opcional para rotacao
+- `APP_OPERATIONAL_EMAIL_INGESTION_PREVIOUS_SECRET` opcional para rotacao
 
 Criar o household e mapear `sourceAccount`:
 
@@ -253,8 +264,7 @@ Payload minimo de teste:
 {
   "scenario": "recurringBill",
   "sourceAccount": "financeiro@gmail.com",
-  "backendBaseUrl": "http://host.docker.internal:8091",
-  "operationalToken": "<token-operacional>"
+  "backendBaseUrl": "http://host.docker.internal:8091"
 }
 ```
 
@@ -366,7 +376,6 @@ Sem esse alinhamento, o n8n local pode ficar com draft/importado valido na base,
 Observacoes operacionais do runtime local:
 
 - `N8N_RUNNERS_ENABLED` nao e mais necessario nas versoes atuais e deve ser removido do compose local
-- workflows que usam `$env` dentro de `Code` nodes exigem `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` no runtime do n8n
 - o warning de Python runner em modo interno nao bloqueia esta V1 porque os workflows oficiais usam JS Code nodes, nao Python nodes
 
 ## Lacunas Planejadas

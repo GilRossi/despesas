@@ -55,7 +55,8 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `APP_SECURITY_TOKEN_SECRET`
-- `APP_OPERATIONAL_EMAIL_INGESTION_TOKEN`
+- `APP_OPERATIONAL_EMAIL_INGESTION_KEY_ID`
+- `APP_OPERATIONAL_EMAIL_INGESTION_SECRET`
 - `APP_FRONTEND_WEB_DIST`
 
 ### Publicas de runtime/proxy
@@ -73,19 +74,25 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `WEBHOOK_URL`
 - `N8N_PROXY_HOPS`
 - `DESPESAS_BACKEND_BASE_URL`
-- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN`
+- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_KEY_ID`
+- `DESPESAS_OPERATIONAL_EMAIL_INGESTION_SECRET`
 - `DESPESAS_GMAIL_SOURCE_ACCOUNT`
 - `DESPESAS_OUTLOOK_SOURCE_ACCOUNT`
 - `DESPESAS_SMOKE_GMAIL_TO`
 - `DESPESAS_SMOKE_OUTLOOK_TO`
 - `GOOGLE_GEMINI_MODEL`
 - `N8N_BLOCK_ENV_ACCESS_IN_NODE`
+- `NODE_FUNCTION_ALLOW_BUILTIN`
 
 ## Variaveis opcionais
 
 - `TRAEFIK_CERTRESOLVER`
 - `POSTGRES_IMAGE`
 - `N8N_IMAGE`
+- `APP_OPERATIONAL_EMAIL_INGESTION_PREVIOUS_KEY_ID`
+- `APP_OPERATIONAL_EMAIL_INGESTION_PREVIOUS_SECRET`
+- `APP_OPERATIONAL_EMAIL_INGESTION_MAX_CLOCK_SKEW_SECONDS`
+- `APP_OPERATIONAL_EMAIL_INGESTION_NONCE_TTL_SECONDS`
 - `APP_SHOW_SQL`
 - `FINANCIAL_ASSISTANT_AI_ENABLED`
 - `DEEPSEEK_API_KEY`
@@ -109,6 +116,7 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `TRAEFIK_ENTRYPOINTS=websecure`
 - `TRAEFIK_CERTRESOLVER=letsencrypt`
 - `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
+- `NODE_FUNCTION_ALLOW_BUILTIN=crypto`
 
 O `n8n` continua escutando internamente em `5678`. O Traefik do host e quem publica `443` externamente.
 O runtime oficial nao depende de uma rede Docker publica compartilhada com o Traefik. A auditoria do host confirmou o Traefik em `host network`, descobrindo os containers do projeto via provider Docker.
@@ -146,7 +154,8 @@ Fica fora do Git:
 
 - todos os arquivos reais em `~/envs/despesas/prod`
 - `APP_SECURITY_TOKEN_SECRET`
-- `APP_OPERATIONAL_EMAIL_INGESTION_TOKEN`
+- `APP_OPERATIONAL_EMAIL_INGESTION_SECRET`
+- `APP_OPERATIONAL_EMAIL_INGESTION_PREVIOUS_SECRET`
 - `DB_PASSWORD`
 - `DEEPSEEK_API_KEY`
 - `N8N_ENCRYPTION_KEY`

@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionOperations;
 
 import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
+import com.gilrossi.despesas.security.OperationalEmailIngestionAuditLogger;
 
 @ExtendWith(MockitoExtension.class)
 class EmailIngestionServiceTest {
@@ -48,7 +49,8 @@ class EmailIngestionServiceTest {
 			recordRepository,
 			fingerprintFactory,
 			expenseImportService,
-			TransactionOperations.withoutTransaction()
+			TransactionOperations.withoutTransaction(),
+			new OperationalEmailIngestionAuditLogger()
 		);
 	}
 
