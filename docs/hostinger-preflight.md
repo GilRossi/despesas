@@ -1,13 +1,13 @@
 # Hostinger preflight
 
-Guia de preflight para primeira subida manual e base de CI/CD controlado.
+Guia de preflight para produção documentada, convivendo com os workflows de CD já existentes para backend e Flutter Web.
 
 ## Premissas desta fase
 
 - VPS Hostinger ja contratada
 - Ubuntu 24.04 com Docker e `docker compose`
 - Traefik ja existe no host e continua sendo o proxy oficial
-- sem deploy automatico em producao nesta fase
+- backend e Flutter Web ja possuem workflows de CD com deploy real para a VPS
 - sem segredos reais no repositório
 
 ## Runtime oficial no host atual
@@ -39,16 +39,20 @@ Guia de preflight para primeira subida manual e base de CI/CD controlado.
 ## Estrategia de CI/CD
 
 - `CI` automatico em PR/push para backend e Flutter
-- `CD` ainda nao entra em producao
-- o passo intermediario desta fase e um preflight manual por `workflow_dispatch`
-- o deploy real so deve nascer depois da primeira subida manual e do smoke externo
+- `CD` real ja existe para backend e Flutter Web
+- o backend e publicado pela imagem Spring Boot em container
+- o Flutter Web e publicado separadamente em `/srv/despesas/frontend-web/current/`
+- o n8n continua fora da esteira de deploy automatizado desta fase
+- o preflight manual por `workflow_dispatch` continua util para validar compose, imagem e artefato antes de acionar ou confiar no deploy real
+- ainda nao existe release atomica unica para backend + Flutter Web + n8n
 
 ## Gate recomendado para o proximo passo
 
 - repositório backend usa `main` protegida e continua `PR-first`
-- quando o deploy real nascer, ele deve usar `workflow_dispatch` e `environment` de producao
-- enquanto a primeira subida manual nao passar, o workflow manual fica restrito a:
+- os workflows reais de deploy devem evoluir para usar `environment` de producao e gates mais fortes
+- o preflight manual deve continuar restrito a:
   - render de compose
   - build local do backend
   - build do artefato web
   - validacoes de preflight
+- a maturidade seguinte exige smoke coordenado e criterio unico de release para backend + Flutter Web + n8n

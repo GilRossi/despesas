@@ -3,10 +3,17 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-.agents/
-.agents.md
+# Local-only AI / agent tooling
 AGENTS.md
+CLAUDE.md
 TEAM_GUIDE.md
+.agents/
+**/.agents/
+.agents*.zip
+.agents.md
+.codex/
+**/.codex/
+.codex.zip
 .claude/
 **/.claude/
 .cursor/
