@@ -1,0 +1,92 @@
+name: Backend CD
+
+on:
+  workflow_run:
+    workflows: ["Backend CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-cd
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build backend image
+        run: |
+          chmod +x mvnw
+          ./mvnw -q -DskipTests spring-boot:build-image \
+            -Dspring-boot.build-image.imageName=despesas-backend:${{ github.sha }}
+          docker tag "despesas-backend:${{ github.sha }}" despesas-backend:main
+
+      - name: Setup deploy SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Transfer image to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          docker save "despesas-backend:${{ github.sha }}" | gzip | \
+            ssh -i ~/.ssh/deploy_key \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=10 \
+              "root@$VPS_HOST" \
+              "gunzip | docker load && \
+               docker tag 'despesas-backend:${{ github.sha }}' despesas-backend:main"
+
+      - name: Deploy on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "root@$VPS_HOST" bash -s << 'DEPLOY'
+          set -euo pipefail
+          IMAGE=despesas-backend:main
+          set -a
+          source /root/envs/despesas/prod/postgres.env
+          source /root/envs/despesas/prod/backend.env
+          source /root/envs/despesas/prod/n8n.env
+          [ -f /root/envs/despesas/prod/google.env ]    && source /root/envs/despesas/prod/google.env    || true
+          [ -f /root/envs/despesas/prod/microsoft.env ] && source /root/envs/despesas/prod/microsoft.env || true
+          set +a
+          export BACKEND_IMAGE="$IMAGE"
+          cd /opt/despesas/deploy
+          docker compose -f compose.base.yml -f compose.prod.yml up -d --no-deps backend
+          docker image prune -f 2>/dev/null || true
+          docker inspect despesas-backend-1 --format 'Running: {{.Config.Image}}'
+          DEPLOY
+
+      - name: Smoke check
+        run: |
+          sleep 20
+          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' \
+            https://app.rossicompany.com.br/actuator/health)
+          echo "Health: $STATUS"
+          [ "$STATUS" = "200" ] || (echo "SMOKE FAILED" && exit 1)
+          echo "Deploy OK"
