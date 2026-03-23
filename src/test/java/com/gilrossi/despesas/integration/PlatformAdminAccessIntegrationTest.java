@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,6 +50,24 @@ class PlatformAdminAccessIntegrationTest {
 		String adminToken = adminLogin.path("data").path("accessToken").asText();
 		assertThat(adminLogin.path("data").path("user").path("role").asText()).isEqualTo("PLATFORM_ADMIN");
 		assertThat(adminLogin.path("data").path("user").path("householdId").isNull()).isTrue();
+
+		mockMvc.perform(get("/api/v1/household/members")
+				.header("Authorization", bearer(adminToken)))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+		mockMvc.perform(post("/api/v1/household/members")
+				.header("Authorization", bearer(adminToken))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "name":"Member Indevido",
+					  "email":"member-admin-blocked@local.invalid",
+					  "password":"senha123"
+					}
+					"""))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
 		String ownerEmail = "owner-controlled@local.invalid";
 		mockMvc.perform(post("/api/v1/admin/households")

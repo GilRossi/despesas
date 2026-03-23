@@ -18,13 +18,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final ObjectMapper objectMapper;
+	private final SecurityAuditLogger securityAuditLogger;
 
-	public ApiAccessDeniedHandler(ObjectMapper objectMapper) {
+	public ApiAccessDeniedHandler(ObjectMapper objectMapper, SecurityAuditLogger securityAuditLogger) {
 		this.objectMapper = objectMapper;
+		this.securityAuditLogger = securityAuditLogger;
 	}
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
+		securityAuditLogger.accessDenied(request);
 		response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		objectMapper.writeValue(response.getWriter(), ApiErrorResponses.body("FORBIDDEN", "Access denied"));

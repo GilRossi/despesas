@@ -8,5 +8,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
 	Optional<AppUser> findByEmailIgnoreCaseAndDeletedAtIsNull(String email);
 
+	Optional<AppUser> findByIdAndDeletedAtIsNull(Long id);
+
 	boolean existsByPlatformRoleAndDeletedAtIsNull(PlatformUserRole platformRole);
 }
