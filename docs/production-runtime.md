@@ -6,7 +6,7 @@ Este documento define o runtime oficial de producao sem ainda executar deploy re
 
 Concentrar no repositório backend a topologia oficial de deploy:
 
-- proxy reverso
+- roteamento por Traefik externo do host
 - backend Spring Boot
 - PostgreSQL
 - n8n
@@ -14,7 +14,7 @@ Concentrar no repositório backend a topologia oficial de deploy:
 
 ## Topologia final
 
-- `proxy`: Caddy termina HTTPS e roteia por host
+- `proxy`: Traefik ja existente no host termina HTTPS e roteia por host
 - `backend`: API + front-door Flutter Web no mesmo processo
 - `postgres`: persistencia principal da aplicacao
 - `n8n`: automacao operacional e webhooks em subdominio proprio
@@ -23,7 +23,7 @@ Concentrar no repositório backend a topologia oficial de deploy:
 
 - [compose.base.yml](/home/gil/workspace/claude/despesas/deploy/compose.base.yml)
 - [compose.prod.yml](/home/gil/workspace/claude/despesas/deploy/compose.prod.yml)
-- [Caddyfile](/home/gil/workspace/claude/despesas/deploy/proxy/Caddyfile)
+- [hostinger-preflight.md](/home/gil/workspace/claude/despesas/docs/hostinger-preflight.md)
 
 ## Diretorios esperados na VPS
 
@@ -62,7 +62,8 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 
 - `APP_PUBLIC_HOST`
 - `N8N_PUBLIC_HOST`
-- `ACME_EMAIL`
+- `TRAEFIK_PUBLIC_NETWORK`
+- `TRAEFIK_ENTRYPOINTS`
 
 ### n8n
 
@@ -79,12 +80,12 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `DESPESAS_SMOKE_GMAIL_TO`
 - `DESPESAS_SMOKE_OUTLOOK_TO`
 - `GOOGLE_GEMINI_MODEL`
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE`
 
 ## Variaveis opcionais
 
 - `POSTGRES_IMAGE`
 - `N8N_IMAGE`
-- `PROXY_IMAGE`
 - `APP_SHOW_SQL`
 - `FINANCIAL_ASSISTANT_AI_ENABLED`
 - `DEEPSEEK_API_KEY`
@@ -105,8 +106,10 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `N8N_PORT=5678`
 - `WEBHOOK_URL=https://n8n.<dominio>/`
 - `N8N_PROXY_HOPS=1`
+- `TRAEFIK_ENTRYPOINTS=websecure`
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
 
-O `n8n` continua escutando internamente em `5678`. O proxy e quem publica `443` externamente.
+O `n8n` continua escutando internamente em `5678`. O Traefik do host e quem publica `443` externamente.
 
 ## Ordem de subida
 
@@ -114,7 +117,7 @@ O `n8n` continua escutando internamente em `5678`. O proxy e quem publica `443` 
 2. publicar o build do Flutter Web em `/srv/despesas/frontend-web/current`
 3. materializar a imagem do backend em `BACKEND_IMAGE`
 4. subir `postgres`, `backend` e `n8n`
-5. subir `proxy`
+5. conectar a stack na rede externa do Traefik
 6. executar smoke minimo
 
 ## Smoke minimo pos-subida
@@ -153,7 +156,8 @@ Vai para a VPS:
 
 - envs reais
 - build do Flutter Web
-- volumes persistentes do `postgres`, `n8n` e `proxy`
+- volumes persistentes do `postgres` e `n8n`
+- storage de certificados e runtime do Traefik permanecem no host
 
 Nunca pode ir para nenhum repositório:
 
@@ -171,7 +175,7 @@ Nunca pode ir para nenhum repositório:
 3. pipeline publica:
    - imagem do backend
    - artefato `build/web`
-4. VPS atualiza a stack Compose
+4. VPS atualiza a stack Compose e deixa o Traefik externo rotear por labels
 5. smoke pos-deploy valida app, API, assistente e n8n
 
 ### GitHub Secrets esperados
@@ -183,4 +187,4 @@ Nunca pode ir para nenhum repositório:
 - `BACKEND_IMAGE`
 - `APP_PUBLIC_HOST`
 - `N8N_PUBLIC_HOST`
-- `ACME_EMAIL`
+- `TRAEFIK_PUBLIC_NETWORK`

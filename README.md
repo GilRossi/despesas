@@ -109,6 +109,8 @@ Leitura de runtime no backend:
 - [`run-local-postgres.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-postgres.sh)
 - [`run-local-backend.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/run-local-backend.sh)
 - [`production-runtime.md`](/home/gil/workspace/claude/despesas/docs/production-runtime.md)
+- [`hostinger-preflight.md`](/home/gil/workspace/claude/despesas/docs/hostinger-preflight.md)
+- [`prepare-production-host.sh`](/home/gil/workspace/claude/despesas/scripts/runtime/prepare-production-host.sh)
 
 Configuração relevante em [`application.properties`](/home/gil/workspace/claude/despesas/src/main/resources/application.properties):
 
