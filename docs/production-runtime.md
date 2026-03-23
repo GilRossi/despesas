@@ -62,7 +62,6 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 
 - `APP_PUBLIC_HOST`
 - `N8N_PUBLIC_HOST`
-- `TRAEFIK_PUBLIC_NETWORK`
 - `TRAEFIK_ENTRYPOINTS`
 
 ### n8n
@@ -84,6 +83,7 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 
 ## Variaveis opcionais
 
+- `TRAEFIK_CERTRESOLVER`
 - `POSTGRES_IMAGE`
 - `N8N_IMAGE`
 - `APP_SHOW_SQL`
@@ -107,9 +107,11 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `WEBHOOK_URL=https://n8n.<dominio>/`
 - `N8N_PROXY_HOPS=1`
 - `TRAEFIK_ENTRYPOINTS=websecure`
+- `TRAEFIK_CERTRESOLVER=letsencrypt`
 - `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
 
 O `n8n` continua escutando internamente em `5678`. O Traefik do host e quem publica `443` externamente.
+O runtime oficial nao depende de uma rede Docker publica compartilhada com o Traefik. A auditoria do host confirmou o Traefik em `host network`, descobrindo os containers do projeto via provider Docker.
 
 ## Ordem de subida
 
@@ -117,7 +119,7 @@ O `n8n` continua escutando internamente em `5678`. O Traefik do host e quem publ
 2. publicar o build do Flutter Web em `/srv/despesas/frontend-web/current`
 3. materializar a imagem do backend em `BACKEND_IMAGE`
 4. subir `postgres`, `backend` e `n8n`
-5. conectar a stack na rede externa do Traefik
+5. deixar o Traefik do host descobrir a stack por labels Docker
 6. executar smoke minimo
 
 ## Smoke minimo pos-subida
@@ -187,4 +189,3 @@ Nunca pode ir para nenhum repositório:
 - `BACKEND_IMAGE`
 - `APP_PUBLIC_HOST`
 - `N8N_PUBLIC_HOST`
-- `TRAEFIK_PUBLIC_NETWORK`

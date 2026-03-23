@@ -11,10 +11,10 @@ on:
         description: Host publico do n8n
         required: true
         default: n8n.rossicompany.com.br
-      traefik_public_network:
-        description: Nome da rede externa do Traefik no host
+      traefik_certresolver:
+        description: Nome do certresolver do Traefik no host
         required: true
-        default: traefik-public
+        default: letsencrypt
       backend_image:
         description: Nome da imagem do backend para preflight
         required: true
@@ -68,7 +68,7 @@ jobs:
                   "N8N_PUBLIC_HOST": os.environ["INPUT_N8N_PUBLIC_HOST"],
                   "API_BASE_URL": f'https://{os.environ["INPUT_APP_PUBLIC_HOST"]}',
                   "BACKEND_IMAGE": os.environ["INPUT_BACKEND_IMAGE"],
-                  "TRAEFIK_PUBLIC_NETWORK": os.environ["INPUT_TRAEFIK_PUBLIC_NETWORK"],
+                  "TRAEFIK_CERTRESOLVER": os.environ["INPUT_TRAEFIK_CERTRESOLVER"],
               },
               n8n: {
                   "N8N_HOST": os.environ["INPUT_N8N_PUBLIC_HOST"],

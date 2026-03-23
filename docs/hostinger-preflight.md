@@ -16,24 +16,25 @@ Guia de preflight para primeira subida manual e base de CI/CD controlado.
 - `postgres` permanece apenas na rede interna
 - o projeto nao sobe mais um proxy proprio dentro da stack
 - o build do Flutter Web continua montado em `/srv/despesas/frontend-web/current`
-- esta estrategia assume que o Traefik do host:
+- a auditoria shell real do host confirmou que o Traefik:
   - usa provider Docker
-  - enxerga uma rede Docker externa compartilhada
-  - ja publica `80/443`
+  - roda em `host network`
+  - publica `80/443`
+  - usa entrypoints `web` e `websecure`
+  - usa `certresolver` nomeado `letsencrypt`
 
 ## Variaveis novas de runtime
 
-- `TRAEFIK_PUBLIC_NETWORK`
 - `TRAEFIK_ENTRYPOINTS`
+- `TRAEFIK_CERTRESOLVER`
 - `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` no runtime do n8n
 
 ## Preflight manual do host
 
-1. exportar `TRAEFIK_PUBLIC_NETWORK`
-2. rodar `scripts/runtime/prepare-production-host.sh`
-3. materializar os envs reais em `~/envs/despesas/prod`
-4. validar o compose com `scripts/runtime/validate-production-compose.sh`
-5. confirmar no host que o Traefik existente realmente usa labels Docker antes da primeira subida manual
+1. rodar `scripts/runtime/prepare-production-host.sh`
+2. materializar os envs reais em `~/envs/despesas/prod`
+3. validar o compose com `scripts/runtime/validate-production-compose.sh`
+4. confirmar no host que o Traefik existente segue com provider Docker, `host network`, entrypoints `web/websecure` e `certresolver` `letsencrypt`
 
 ## Estrategia de CI/CD
 

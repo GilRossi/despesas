@@ -21,12 +21,43 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 traefik_containers="$(docker ps --format '{{.Names}}\t{{.Image}}' | grep -i traefik || true)"
+traefik_container_name="$(printf '%s\n' "${traefik_containers}" | head -n 1 | cut -f 1)"
 
 if [[ -n "${traefik_containers}" ]]; then
   echo "Traefik detectado no host:"
   echo "${traefik_containers}"
 else
   echo "PENDENTE: nenhum container Traefik foi detectado no host."
+fi
+
+if [[ -n "${traefik_container_name}" ]]; then
+  traefik_network_mode="$(docker inspect "${traefik_container_name}" --format '{{.HostConfig.NetworkMode}}')"
+  traefik_cmd_json="$(docker inspect "${traefik_container_name}" --format '{{json .Config.Cmd}}')"
+
+  if [[ "${traefik_network_mode}" == "host" ]]; then
+    echo "OK Traefik em host network."
+  else
+    echo "PENDENTE Traefik em host network: modo atual ${traefik_network_mode}"
+  fi
+
+  TRAEFIK_CMD_JSON="${traefik_cmd_json}" TRAEFIK_CERTRESOLVER="${TRAEFIK_CERTRESOLVER:-letsencrypt}" python3 - <<'PY'
+import json
+import os
+
+cmd = json.loads(os.environ["TRAEFIK_CMD_JSON"] or "[]")
+certresolver = os.environ["TRAEFIK_CERTRESOLVER"]
+checks = [
+    ("provider Docker", "--providers.docker=true"),
+    ("docker exposedByDefault=false", "--providers.docker.exposedbydefault=false"),
+    ("entrypoint web=:80", "--entrypoints.web.address=:80"),
+    ("entrypoint websecure=:443", "--entrypoints.websecure.address=:443"),
+    (f"certresolver {certresolver}", f"--certificatesresolvers.{certresolver}.acme.httpchallenge=true"),
+]
+
+for label, expected_flag in checks:
+    status = "OK" if expected_flag in cmd else "PENDENTE"
+    print(f"{status} {label}")
+PY
 fi
 
 mkdir -p "${despesas_root}/frontend-web/current"
@@ -49,15 +80,5 @@ for file_name in backend.env postgres.env n8n.env google.env microsoft.env; do
     echo "PENDENTE env: ${file_path}"
   fi
 done
-
-if [[ -n "${TRAEFIK_PUBLIC_NETWORK:-}" ]]; then
-  if docker network inspect "${TRAEFIK_PUBLIC_NETWORK}" >/dev/null 2>&1; then
-    echo "OK rede Traefik externa: ${TRAEFIK_PUBLIC_NETWORK}"
-  else
-    echo "PENDENTE rede Traefik externa: ${TRAEFIK_PUBLIC_NETWORK}"
-  fi
-else
-  echo "PENDENTE rede Traefik externa: exporte TRAEFIK_PUBLIC_NETWORK antes da primeira subida."
-fi
 
 echo "Preflight do host concluido sem subir containers."
