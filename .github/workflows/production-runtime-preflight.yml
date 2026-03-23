@@ -1,0 +1,106 @@
+name: Production Runtime Preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_public_host:
+        description: Host publico do app
+        required: true
+        default: app.rossicompany.com.br
+      n8n_public_host:
+        description: Host publico do n8n
+        required: true
+        default: n8n.rossicompany.com.br
+      traefik_certresolver:
+        description: Nome do certresolver do Traefik no host
+        required: true
+        default: letsencrypt
+      backend_image:
+        description: Nome da imagem do backend para preflight
+        required: true
+        default: ghcr.io/example/despesas-backend:preflight
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-runtime-preflight
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Ensure Maven wrapper is executable
+        run: chmod +x mvnw scripts/runtime/validate-production-compose.sh
+
+      - name: Prepare placeholder production envs
+        run: |
+          export DESPESAS_ENV_ROOT="$RUNNER_TEMP/envs/despesas"
+          mkdir -p "$DESPESAS_ENV_ROOT/prod"
+          cp deploy/env/prod/backend.env.example "$DESPESAS_ENV_ROOT/prod/backend.env"
+          cp deploy/env/prod/postgres.env.example "$DESPESAS_ENV_ROOT/prod/postgres.env"
+          cp deploy/env/prod/n8n.env.example "$DESPESAS_ENV_ROOT/prod/n8n.env"
+          cp deploy/env/prod/google.env.example "$DESPESAS_ENV_ROOT/prod/google.env"
+          cp deploy/env/prod/microsoft.env.example "$DESPESAS_ENV_ROOT/prod/microsoft.env"
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          backend = Path(os.environ["RUNNER_TEMP"]) / "envs" / "despesas" / "prod" / "backend.env"
+          n8n = Path(os.environ["RUNNER_TEMP"]) / "envs" / "despesas" / "prod" / "n8n.env"
+
+          replacements = {
+              backend: {
+                  "APP_PUBLIC_HOST": os.environ["INPUT_APP_PUBLIC_HOST"],
+                  "N8N_PUBLIC_HOST": os.environ["INPUT_N8N_PUBLIC_HOST"],
+                  "API_BASE_URL": f'https://{os.environ["INPUT_APP_PUBLIC_HOST"]}',
+                  "BACKEND_IMAGE": os.environ["INPUT_BACKEND_IMAGE"],
+                  "TRAEFIK_CERTRESOLVER": os.environ["INPUT_TRAEFIK_CERTRESOLVER"],
+              },
+              n8n: {
+                  "N8N_HOST": os.environ["INPUT_N8N_PUBLIC_HOST"],
+                  "WEBHOOK_URL": f'https://{os.environ["INPUT_N8N_PUBLIC_HOST"]}/',
+              },
+          }
+
+          for path, mapping in replacements.items():
+              lines = path.read_text().splitlines()
+              rewritten = []
+              for line in lines:
+                  if "=" not in line or line.startswith("#"):
+                      rewritten.append(line)
+                      continue
+                  key, _ = line.split("=", 1)
+                  rewritten.append(f"{key}={mapping.get(key, line.split('=', 1)[1])}")
+              path.write_text("\n".join(rewritten) + "\n")
+          PY
+          echo "DESPESAS_ENV_ROOT=$DESPESAS_ENV_ROOT" >> "$GITHUB_ENV"
+
+      - name: Validate compose rendering
+        run: scripts/runtime/validate-production-compose.sh
+
+      - name: Upload rendered compose
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-compose-rendered
+          path: /tmp/despesas-production-compose.rendered.yml
+          if-no-files-found: error
+
+      - name: Build backend image locally
+        run: ./mvnw -q -DskipTests spring-boot:build-image -Dspring-boot.build-image.imageName="${{ inputs.backend_image }}"
+
+      - name: Show built image
+        run: docker image inspect "${{ inputs.backend_image }}" --format '{{.RepoTags}}'

@@ -1,0 +1,49 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-runtime-preflight:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Ensure Maven wrapper is executable
+        run: chmod +x mvnw scripts/runtime/validate-production-compose.sh
+
+      - name: Run backend tests
+        run: ./mvnw -q test
+
+      - name: Prepare placeholder production envs
+        run: |
+          export DESPESAS_ENV_ROOT="$RUNNER_TEMP/envs/despesas"
+          mkdir -p "$DESPESAS_ENV_ROOT/prod"
+          cp deploy/env/prod/backend.env.example "$DESPESAS_ENV_ROOT/prod/backend.env"
+          cp deploy/env/prod/postgres.env.example "$DESPESAS_ENV_ROOT/prod/postgres.env"
+          cp deploy/env/prod/n8n.env.example "$DESPESAS_ENV_ROOT/prod/n8n.env"
+          cp deploy/env/prod/google.env.example "$DESPESAS_ENV_ROOT/prod/google.env"
+          cp deploy/env/prod/microsoft.env.example "$DESPESAS_ENV_ROOT/prod/microsoft.env"
+          echo "DESPESAS_ENV_ROOT=$DESPESAS_ENV_ROOT" >> "$GITHUB_ENV"
+
+      - name: Render production compose
+        run: scripts/runtime/validate-production-compose.sh
