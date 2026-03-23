@@ -15,5 +15,7 @@ class FinancialAssistantAiPropertiesTest {
 		assertThat(properties.getTimeoutSeconds()).isEqualTo(20);
 		assertThat(properties.getMaxRetries()).isEqualTo(1);
 		assertThat(properties.getModel()).isEqualTo("deepseek-chat");
+		assertThat(properties.isLogRequests()).isFalse();
+		assertThat(properties.isLogResponses()).isFalse();
 	}
 }

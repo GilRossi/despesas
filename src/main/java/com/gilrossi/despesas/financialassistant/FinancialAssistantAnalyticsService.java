@@ -20,8 +20,6 @@ import com.gilrossi.despesas.expense.Expense;
 import com.gilrossi.despesas.expense.ExpenseRepository;
 import com.gilrossi.despesas.payment.Payment;
 import com.gilrossi.despesas.payment.PaymentRepository;
-import com.gilrossi.despesas.security.CurrentHouseholdProvider;
-
 @Service
 public class FinancialAssistantAnalyticsService {
 
@@ -30,22 +28,27 @@ public class FinancialAssistantAnalyticsService {
 
 	private final ExpenseRepository expenseRepository;
 	private final PaymentRepository paymentRepository;
-	private final CurrentHouseholdProvider currentHouseholdProvider;
+	private final FinancialAssistantAccessContextProvider accessContextProvider;
 
 	public FinancialAssistantAnalyticsService(
 		ExpenseRepository expenseRepository,
 		PaymentRepository paymentRepository,
-		CurrentHouseholdProvider currentHouseholdProvider
+		FinancialAssistantAccessContextProvider accessContextProvider
 	) {
 		this.expenseRepository = expenseRepository;
 		this.paymentRepository = paymentRepository;
-		this.currentHouseholdProvider = currentHouseholdProvider;
+		this.accessContextProvider = accessContextProvider;
 	}
 
 	@Transactional(readOnly = true)
 	public FinancialAssistantPeriodSummaryResponse summarize(LocalDate from, LocalDate to) {
+		return summarize(accessContextProvider.requireContext(), from, to);
+	}
+
+	@Transactional(readOnly = true)
+	FinancialAssistantPeriodSummaryResponse summarize(FinancialAssistantAccessContext context, LocalDate from, LocalDate to) {
 		FinancialAssistantDateRange range = FinancialAssistantSupport.resolveRange(from, to);
-		PeriodSnapshot snapshot = snapshot(range);
+		PeriodSnapshot snapshot = snapshot(context, range);
 		List<CategorySpendingResponse> categories = categoryTotals(snapshot.expenses()).stream()
 			.sorted(Comparator.comparing(CategorySpendingResponse::totalAmount).reversed().thenComparing(CategorySpendingResponse::categoryName))
 			.toList();
@@ -66,7 +69,12 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public FinancialAssistantKpisResponse kpis(LocalDate from, LocalDate to) {
-		FinancialAssistantPeriodSummaryResponse summary = summarize(from, to);
+		return kpis(accessContextProvider.requireContext(), from, to);
+	}
+
+	@Transactional(readOnly = true)
+	FinancialAssistantKpisResponse kpis(FinancialAssistantAccessContext context, LocalDate from, LocalDate to) {
+		FinancialAssistantPeriodSummaryResponse summary = summarize(context, from, to);
 		BigDecimal averageExpense = summary.totalExpenses() == 0
 			? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
 			: summary.totalAmount().divide(BigDecimal.valueOf(summary.totalExpenses()), 2, RoundingMode.HALF_UP);
@@ -84,9 +92,14 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public MonthComparisonResponse compareMonths(YearMonth referenceMonth) {
-		FinancialAssistantPeriodSummaryResponse current = summarize(referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
+		return compareMonths(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	MonthComparisonResponse compareMonths(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
+		FinancialAssistantPeriodSummaryResponse current = summarize(context, referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
 		YearMonth previousMonth = referenceMonth.minusMonths(1);
-		FinancialAssistantPeriodSummaryResponse previous = summarize(previousMonth.atDay(1), previousMonth.atEndOfMonth());
+		FinancialAssistantPeriodSummaryResponse previous = summarize(context, previousMonth.atDay(1), previousMonth.atEndOfMonth());
 		BigDecimal deltaAmount = current.totalAmount().subtract(previous.totalAmount());
 		BigDecimal deltaPercentage = FinancialAssistantSupport.percentageChange(current.totalAmount(), previous.totalAmount());
 		return new MonthComparisonResponse(
@@ -101,8 +114,17 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public List<IncreaseAlertResponse> increaseAlerts(YearMonth referenceMonth) {
-		FinancialAssistantPeriodSummaryResponse current = summarize(referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
-		FinancialAssistantPeriodSummaryResponse previous = summarize(referenceMonth.minusMonths(1).atDay(1), referenceMonth.minusMonths(1).atEndOfMonth());
+		return increaseAlerts(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	List<IncreaseAlertResponse> increaseAlerts(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
+		FinancialAssistantPeriodSummaryResponse current = summarize(context, referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
+		FinancialAssistantPeriodSummaryResponse previous = summarize(
+			context,
+			referenceMonth.minusMonths(1).atDay(1),
+			referenceMonth.minusMonths(1).atEndOfMonth()
+		);
 		Map<String, CategorySpendingResponse> previousByName = previous.categoryTotals().stream()
 			.collect(Collectors.toMap(category -> FinancialAssistantSupport.normalizeText(category.categoryName()), category -> category, (left, right) -> left, LinkedHashMap::new));
 		return current.categoryTotals().stream()
@@ -121,7 +143,12 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public List<RecurringExpenseResponse> recurringExpenses(YearMonth referenceMonth) {
-		Long householdId = currentHouseholdProvider.requireHouseholdId();
+		return recurringExpenses(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	List<RecurringExpenseResponse> recurringExpenses(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
+		Long householdId = context.householdId();
 		LocalDate from = referenceMonth.minusMonths(RECURRING_MONTH_WINDOW - 1L).atDay(1);
 		LocalDate to = referenceMonth.atEndOfMonth();
 		List<Expense> expenses = expenseRepository.findAllByHouseholdIdAndDueDateGreaterThanEqual(householdId, from).stream()
@@ -139,11 +166,16 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public BigDecimal totalByCategory(YearMonth referenceMonth, String categoryName) {
+		return totalByCategory(accessContextProvider.requireContext(), referenceMonth, categoryName);
+	}
+
+	@Transactional(readOnly = true)
+	BigDecimal totalByCategory(FinancialAssistantAccessContext context, YearMonth referenceMonth, String categoryName) {
 		if (categoryName == null || categoryName.isBlank()) {
 			return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 		}
 		String normalizedCategory = FinancialAssistantSupport.normalizeText(categoryName);
-		return summarize(referenceMonth.atDay(1), referenceMonth.atEndOfMonth()).categoryTotals().stream()
+		return summarize(context, referenceMonth.atDay(1), referenceMonth.atEndOfMonth()).categoryTotals().stream()
 			.filter(category -> FinancialAssistantSupport.normalizeText(category.categoryName()).equals(normalizedCategory))
 			.map(CategorySpendingResponse::totalAmount)
 			.findFirst()
@@ -152,17 +184,27 @@ public class FinancialAssistantAnalyticsService {
 
 	@Transactional(readOnly = true)
 	public CategorySpendingResponse highestSpendingCategory(YearMonth referenceMonth) {
-		return summarize(referenceMonth.atDay(1), referenceMonth.atEndOfMonth()).categoryTotals().stream().findFirst().orElse(null);
+		return highestSpendingCategory(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	CategorySpendingResponse highestSpendingCategory(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
+		return summarize(context, referenceMonth.atDay(1), referenceMonth.atEndOfMonth()).categoryTotals().stream().findFirst().orElse(null);
 	}
 
 	@Transactional(readOnly = true)
 	public List<TopExpenseResponse> topExpenses(YearMonth referenceMonth, int limit) {
-		PeriodSnapshot snapshot = snapshot(FinancialAssistantSupport.monthRange(referenceMonth));
+		return topExpenses(accessContextProvider.requireContext(), referenceMonth, limit);
+	}
+
+	@Transactional(readOnly = true)
+	List<TopExpenseResponse> topExpenses(FinancialAssistantAccessContext context, YearMonth referenceMonth, int limit) {
+		PeriodSnapshot snapshot = snapshot(context, FinancialAssistantSupport.monthRange(referenceMonth));
 		return topExpenses(snapshot.expenses(), limit);
 	}
 
-	private PeriodSnapshot snapshot(FinancialAssistantDateRange range) {
-		Long householdId = currentHouseholdProvider.requireHouseholdId();
+	private PeriodSnapshot snapshot(FinancialAssistantAccessContext context, FinancialAssistantDateRange range) {
+		Long householdId = context.householdId();
 		List<Expense> expenses = expenseRepository.findAllByHouseholdIdAndDueDateBetween(householdId, range.from(), range.to());
 		Map<Long, List<Payment>> paymentsByExpenseId = paymentsByExpenseId(expenses);
 		BigDecimal totalAmount = sumExpenseAmounts(expenses);

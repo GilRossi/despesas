@@ -11,16 +11,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
 
 import com.gilrossi.despesas.catalog.category.Category;
 import com.gilrossi.despesas.catalog.category.CategoryRepository;
-import com.gilrossi.despesas.security.CurrentHouseholdProvider;
 
 @ExtendWith(MockitoExtension.class)
 class FinancialAssistantIntentResolverTest {
 
 	@Mock
-	private CurrentHouseholdProvider currentHouseholdProvider;
+	private FinancialAssistantAccessContextProvider accessContextProvider;
 
 	@Mock
 	private CategoryRepository categoryRepository;
@@ -29,8 +29,8 @@ class FinancialAssistantIntentResolverTest {
 
 	@BeforeEach
 	void setUp() {
-		resolver = new FinancialAssistantIntentResolver(currentHouseholdProvider, categoryRepository);
-		when(currentHouseholdProvider.requireHouseholdId()).thenReturn(7L);
+		resolver = new FinancialAssistantIntentResolver(accessContextProvider, categoryRepository);
+		Mockito.lenient().when(accessContextProvider.requireContext()).thenReturn(new FinancialAssistantAccessContext(1L, 7L, "OWNER"));
 		when(categoryRepository.findActiveByHouseholdId(7L)).thenReturn(List.of(
 			new Category(10L, "Alimentação", true),
 			new Category(11L, "Moradia", true)
@@ -68,5 +68,13 @@ class FinancialAssistantIntentResolverTest {
 		ResolvedFinancialAssistantQuery response = resolver.resolve("Me ajuda a entender minhas finanças", YearMonth.of(2026, 3));
 
 		assertEquals(FinancialAssistantIntent.UNKNOWN, response.intent());
+	}
+
+	@Test
+	void deve_nao_resolver_categoria_que_existe_apenas_em_outro_household() {
+		ResolvedFinancialAssistantQuery response = resolver.resolve("Quanto gastei com transporte?", YearMonth.of(2026, 3), 7L);
+
+		assertEquals(FinancialAssistantIntent.UNKNOWN, response.intent());
+		assertEquals(null, response.categoryName());
 	}
 }

@@ -28,17 +28,18 @@ public class FinancialAssistantAiConfig {
 			return new UnavailableFinancialAssistantConversationGateway();
 		}
 
-		OpenAiChatModel chatModel = OpenAiChatModel.builder()
-			.baseUrl(properties.getBaseUrl())
-			.apiKey(properties.getApiKey())
-			.modelName(properties.getModel())
-			.temperature(properties.getTemperature())
-			.maxCompletionTokens(properties.getMaxCompletionTokens())
-			.timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
-			.maxRetries(properties.getMaxRetries())
-			.logRequests(properties.isLogRequests())
-			.logResponses(properties.isLogResponses())
-			.build();
+			OpenAiChatModel chatModel = OpenAiChatModel.builder()
+				.baseUrl(properties.getBaseUrl())
+				.apiKey(properties.getApiKey())
+				.modelName(properties.getModel())
+				.temperature(properties.getTemperature())
+				.maxCompletionTokens(properties.getMaxCompletionTokens())
+				.timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
+				.maxRetries(properties.getMaxRetries())
+				// Raw provider logs can leak prompts and answers; use the assistant audit logger instead.
+				.logRequests(false)
+				.logResponses(false)
+				.build();
 
 		FinancialAssistantAiService aiService = AiServices.builder(FinancialAssistantAiService.class)
 			.chatModel(chatModel)
