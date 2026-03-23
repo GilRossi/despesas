@@ -14,6 +14,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import com.gilrossi.despesas.expense.ExpenseResponse;
+import com.gilrossi.despesas.security.OperationalEmailIngestionAuditLogger;
 
 @Service
 public class EmailIngestionService {
@@ -25,6 +26,7 @@ public class EmailIngestionService {
 	private final EmailIngestionFingerprintFactory fingerprintFactory;
 	private final EmailIngestionExpenseImportService expenseImportService;
 	private final TransactionOperations transactionOperations;
+	private final OperationalEmailIngestionAuditLogger auditLogger;
 
 	@Autowired
 	public EmailIngestionService(
@@ -32,14 +34,16 @@ public class EmailIngestionService {
 		EmailIngestionRecordRepository recordRepository,
 		EmailIngestionFingerprintFactory fingerprintFactory,
 		EmailIngestionExpenseImportService expenseImportService,
-		PlatformTransactionManager transactionManager
+		PlatformTransactionManager transactionManager,
+		OperationalEmailIngestionAuditLogger auditLogger
 	) {
 		this(
 			sourceRepository,
 			recordRepository,
 			fingerprintFactory,
 			expenseImportService,
-			new TransactionTemplate(transactionManager)
+			new TransactionTemplate(transactionManager),
+			auditLogger
 		);
 	}
 
@@ -48,24 +52,33 @@ public class EmailIngestionService {
 		EmailIngestionRecordRepository recordRepository,
 		EmailIngestionFingerprintFactory fingerprintFactory,
 		EmailIngestionExpenseImportService expenseImportService,
-		TransactionOperations transactionOperations
+		TransactionOperations transactionOperations,
+		OperationalEmailIngestionAuditLogger auditLogger
 	) {
 		this.sourceRepository = sourceRepository;
 		this.recordRepository = recordRepository;
 		this.fingerprintFactory = fingerprintFactory;
 		this.expenseImportService = expenseImportService;
 		this.transactionOperations = transactionOperations;
+		this.auditLogger = auditLogger;
 	}
 
 	public EmailIngestionResult process(ProcessEmailIngestionCommand command) {
 		String normalizedSourceAccount = normalizeRequired(command.sourceAccount(), "sourceAccount").toLowerCase(Locale.ROOT);
 		EmailIngestionSource source = sourceRepository.findActiveByNormalizedSourceAccount(normalizedSourceAccount)
-			.orElseThrow(() -> new IllegalArgumentException("Source account is not mapped to an active household"));
+			.orElseThrow(() -> unmappedSourceAccount(normalizedSourceAccount));
 		ProcessEmailIngestionCommand normalizedCommand = normalizeCommand(command, normalizedSourceAccount);
-
-		return recordRepository.findBySourceAccountAndExternalMessageId(normalizedSourceAccount, normalizedCommand.externalMessageId())
+		EmailIngestionResult result = recordRepository.findBySourceAccountAndExternalMessageId(normalizedSourceAccount, normalizedCommand.externalMessageId())
 			.map(existing -> duplicateResult(existing, EmailIngestionDecisionReason.DUPLICATE_MESSAGE_ID))
 			.orElseGet(() -> processUniqueCandidateSafely(source, normalizedCommand));
+		auditLogger.ingestionAccepted(
+			source.sourceAccount(),
+			result.householdId(),
+			result.ingestionId(),
+			result.decision(),
+			result.duplicate()
+		);
+		return result;
 	}
 
 	private EmailIngestionResult processUniqueCandidateSafely(EmailIngestionSource source, ProcessEmailIngestionCommand command) {
@@ -238,6 +251,11 @@ public class EmailIngestionService {
 
 	private String normalizeOptional(String value) {
 		return StringUtils.hasText(value) ? value.trim() : null;
+	}
+
+	private IllegalArgumentException unmappedSourceAccount(String normalizedSourceAccount) {
+		auditLogger.sourceAccountRejected(normalizedSourceAccount, "unmapped_source_account");
+		return new IllegalArgumentException("Source account is not mapped to an active household");
 	}
 
 	private String messageFor(EmailIngestionFinalDecision decision, EmailIngestionDecisionReason reason) {

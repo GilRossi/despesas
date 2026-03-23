@@ -489,8 +489,7 @@ NORMALIZE_ENVELOPE_CODE = dedent(
 	return [{
 	  json: {
 	    ...payload,
-    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $env.DESPESAS_BACKEND_BASE_URL || '',
-    operationalToken: payload.operationalToken || envelope.operationalToken || $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
+	    backendBaseUrl: payload.backendBaseUrl || envelope.backendBaseUrl || $env.DESPESAS_BACKEND_BASE_URL || '',
 	  },
 	}];
 	"""
@@ -595,8 +594,12 @@ BUILD_AI_PAYLOAD_CODE = dedent(
 POST_TO_BACKEND_CODE = dedent(
 	"""
 	const item = $input.first().json;
+	const crypto = require('crypto');
+	const operationalKeyId = $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_KEY_ID || '';
+	const operationalSecret = $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_SECRET || '';
+	const operationalPath = '/api/v1/operations/email-ingestions';
 
-	if (!item.backendBaseUrl || !item.operationalToken) {
+	if (!item.backendBaseUrl || !operationalKeyId || !operationalSecret) {
 	  return [{
 	    json: {
 	      status: 'configuration_error',
@@ -604,20 +607,43 @@ POST_TO_BACKEND_CODE = dedent(
 	      route: item.route,
 	      mailboxAction: 'review',
 	      candidate: item.backendPayload || null,
-	      message: 'Backend runtime configuration is missing in n8n. Provide backendBaseUrl and operationalToken or configure n8n variables.',
+	      message: 'Backend runtime configuration is missing in n8n. Provide backendBaseUrl and the operational signing variables.',
 	    },
 	  }];
 	}
 
 	try {
+	  const serializedPayload = JSON.stringify(item.backendPayload || {});
+	  const timestamp = Math.floor(Date.now() / 1000).toString();
+	  const nonce = typeof crypto.randomUUID === 'function'
+	    ? crypto.randomUUID()
+	    : crypto.randomBytes(16).toString('hex');
+	  const bodySha256 = crypto.createHash('sha256').update(serializedPayload).digest('hex');
+	  const canonicalPayload = [
+	    'v1',
+	    'POST',
+	    operationalPath,
+	    operationalKeyId,
+	    timestamp,
+	    nonce,
+	    bodySha256,
+	  ].join('\\n');
+	  const signature = crypto
+	    .createHmac('sha256', operationalSecret)
+	    .update(canonicalPayload)
+	    .digest('hex');
 	  const response = await helpers.httpRequest({
 	    method: 'POST',
-	    url: `${item.backendBaseUrl.replace(/\\/$/, '')}/api/v1/operations/email-ingestions`,
+	    url: `${item.backendBaseUrl.replace(/\\/$/, '')}${operationalPath}`,
 	    headers: {
 	      'Content-Type': 'application/json',
-	      'Authorization': `Bearer ${item.operationalToken}`,
+	      'X-Operational-Key-Id': operationalKeyId,
+	      'X-Operational-Timestamp': timestamp,
+	      'X-Operational-Nonce': nonce,
+	      'X-Operational-Body-SHA256': bodySha256,
+	      'X-Operational-Signature': signature,
 	    },
-	    body: item.backendPayload,
+	    body: serializedPayload,
 	    returnFullResponse: true,
 	  });
 
@@ -727,7 +753,6 @@ return [{
       ...base,
       channel: incoming.channel || 'replay',
       backendBaseUrl: incoming.backendBaseUrl || '',
-      operationalToken: incoming.operationalToken || '',
     },
   },
 }];
@@ -830,7 +855,6 @@ GMAIL_PREPARE_CODE = dedent(
 	        merchantOrPayee: '',
 	        currency: 'BRL',
         backendBaseUrl: $env.DESPESAS_BACKEND_BASE_URL || '',
-        operationalToken: $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
 	        mailbox: {
 	          provider: 'gmail',
 	          messageId: item.id || item.messageId || '',
@@ -864,7 +888,6 @@ OUTLOOK_PREPARE_CODE = dedent(
 	        merchantOrPayee: '',
 	        currency: 'BRL',
         backendBaseUrl: $env.DESPESAS_BACKEND_BASE_URL || '',
-        operationalToken: $env.DESPESAS_OPERATIONAL_EMAIL_INGESTION_TOKEN || '',
 	        mailbox: {
 	          provider: 'outlook',
 	          messageId: item.id || '',
@@ -1567,7 +1590,7 @@ def replay_workflow() -> dict:
 	return workflow(
 		"8SwJvATnReplayV1",
 		"Email Ingestion :: Replay Harness V1",
-		"Replay and smoke-test entrypoint for synthetic or copied real emails. Reuses the common processor webhook and allows backend URL/token overrides in the request body for local validation.",
+		"Replay and smoke-test entrypoint for synthetic or copied real emails. Reuses the common processor webhook and allows backend URL override in the request body for local validation while operational signing stays in n8n env vars.",
 		nodes,
 		connections,
 		version_id="7ed0bb0c-625c-4ca5-9d0e-c6c79254f930",

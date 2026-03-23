@@ -5,11 +5,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.gilrossi.despesas.support.OperationalRequestSignatureTestSupport.signedOperationalPost;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,12 +35,12 @@ import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationResponse;
 import com.gilrossi.despesas.identity.RegistrationService;
 import com.gilrossi.despesas.support.ApiAuthTestSupport;
+import com.gilrossi.despesas.support.OperationalRequestSignatureTestSupport;
+import com.gilrossi.despesas.security.OperationalRequestSignatureSupport;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class EmailIngestionIntegrationTest {
-
-	private static final String OPERATIONS_TOKEN = "test-operational-email-ingestion-token";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -61,17 +64,70 @@ class EmailIngestionIntegrationTest {
 	private EmailIngestionRecordRepository recordRepository;
 
 	@Test
-	void deve_exigir_token_operacional_para_ingestao() throws Exception {
+	void deve_exigir_assinatura_operacional_valida_para_ingestao() throws Exception {
 		mockMvc.perform(post("/api/v1/operations/email-ingestions")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(validRecurringBillPayload("financeiro@gmail.com", "msg-auth-1", "Casa", "Internet", 0.96)))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer token-errado")
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro@gmail.com", "msg-auth-1", "Casa", "Internet", 0.96),
+				OperationalRequestSignatureTestSupport.TEST_KEY_ID,
+				"segredo-invalido",
+				Instant.now().getEpochSecond(),
+				UUID.randomUUID().toString()
+			))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void deve_rejeitar_replay_e_timestamp_fora_da_janela() throws Exception {
+		registrationService.register(new RegistrationRequest("Helena", "replay-owner@local.invalid", "senha123", "Casa Replay"));
+		String ownerToken = ApiAuthTestSupport.accessToken(mockMvc, objectMapper, "replay-owner@local.invalid", "senha123");
+		mockMvc.perform(post("/api/v1/email-ingestion/sources")
+				.header("Authorization", "Bearer " + ownerToken)
 				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro@gmail.com", "msg-auth-1", "Casa", "Internet", 0.96)))
+				.content("""
+					{"sourceAccount":"financeiro-replay@gmail.com"}
+					"""))
+			.andExpect(status().isCreated());
+
+		String payload = validRecurringBillPayload("financeiro-replay@gmail.com", "msg-replay-1", "Casa", "Internet", 0.96);
+		String nonce = UUID.randomUUID().toString();
+		long currentTimestamp = Instant.now().getEpochSecond();
+
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				payload,
+				OperationalRequestSignatureTestSupport.TEST_KEY_ID,
+				OperationalRequestSignatureTestSupport.TEST_SECRET,
+				currentTimestamp,
+				nonce
+			))
+			.andExpect(status().isOk());
+
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				payload,
+				OperationalRequestSignatureTestSupport.TEST_KEY_ID,
+				OperationalRequestSignatureTestSupport.TEST_SECRET,
+				currentTimestamp,
+				nonce
+			))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-replay@gmail.com", "msg-replay-2", "Casa", "Internet", 0.96),
+				OperationalRequestSignatureTestSupport.TEST_KEY_ID,
+				OperationalRequestSignatureTestSupport.TEST_SECRET,
+				currentTimestamp - 3600,
+				UUID.randomUUID().toString()
+			))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
@@ -141,10 +197,10 @@ class EmailIngestionIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-clara@gmail.com", "msg-recorrente-1", "Casa", "Internet", 0.96)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-clara@gmail.com", "msg-recorrente-1", "Casa", "Internet", 0.96)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("AUTO_IMPORTED"))
 			.andExpect(jsonPath("$.data.reason").value("IMPORTED"))
@@ -171,10 +227,10 @@ class EmailIngestionIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-dani@gmail.com", "msg-recorrente-review", "Casa", "Internet", 0.72)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-dani@gmail.com", "msg-recorrente-review", "Casa", "Internet", 0.72)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("REVIEW_REQUIRED"))
 			.andExpect(jsonPath("$.data.reason").value("REVIEW_REQUESTED"));
@@ -194,10 +250,9 @@ class EmailIngestionIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				"""
 					{
 					  "sourceAccount":"financeiro-eva@gmail.com",
 					  "externalMessageId":"msg-irrelevante-1",
@@ -210,22 +265,23 @@ class EmailIngestionIntegrationTest {
 					  "rawReference":"gmail:msg-irrelevante-1",
 					  "desiredDecision":"IGNORE"
 					}
-					"""))
+					"""
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("IGNORED"))
 			.andExpect(jsonPath("$.data.reason").value("IRRELEVANT_CLASSIFICATION"));
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-eva@gmail.com", "msg-dup-1", "Casa", "Internet", 0.96)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-eva@gmail.com", "msg-dup-1", "Casa", "Internet", 0.96)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("AUTO_IMPORTED"));
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-eva@gmail.com", "msg-dup-1", "Casa", "Internet", 0.96)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-eva@gmail.com", "msg-dup-1", "Casa", "Internet", 0.96)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("IGNORED"))
 			.andExpect(jsonPath("$.data.reason").value("DUPLICATE_MESSAGE_ID"))
@@ -249,10 +305,9 @@ class EmailIngestionIntegrationTest {
 		Category pets = categoryRepository.save(owner.householdId(), new Category(null, "Pets", true));
 		Subcategory petShop = subcategoryRepository.save(owner.householdId(), new Subcategory(null, pets.getId(), "Pet shop", true));
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				"""
 					{
 					  "sourceAccount":"financeiro-fabi@gmail.com",
 					  "externalMessageId":"msg-cobasi-1",
@@ -276,7 +331,8 @@ class EmailIngestionIntegrationTest {
 					  "rawReference":"gmail:msg-cobasi-1",
 					  "desiredDecision":"AUTO_IMPORT"
 					}
-					"""))
+					"""
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.decision").value("AUTO_IMPORTED"))
 			.andExpect(jsonPath("$.data.expenseId").value(greaterThanOrEqualTo(1)));
@@ -313,17 +369,17 @@ class EmailIngestionIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-ana@gmail.com", "msg-isolamento-1", "Casa", "Internet", 0.96)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-ana@gmail.com", "msg-isolamento-1", "Casa", "Internet", 0.96)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.householdId").value(ana.householdId()));
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload("financeiro-bruno@gmail.com", "msg-isolamento-2", "Casa", "Internet", 0.96)))
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload("financeiro-bruno@gmail.com", "msg-isolamento-2", "Casa", "Internet", 0.96)
+			))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.householdId").value(bruno.householdId()));
 
@@ -345,10 +401,9 @@ class EmailIngestionIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				"""
 					{
 					  "sourceAccount":"financeiro-gabi@gmail.com",
 					  "externalMessageId":"msg-invalido-1",
@@ -361,9 +416,55 @@ class EmailIngestionIntegrationTest {
 					  "rawReference":"gmail:msg-invalido-1",
 					  "desiredDecision":"AUTO_IMPORT"
 					}
-					"""))
+					"""
+			))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+	}
+
+	@Test
+	void deve_rejeitar_payload_que_tenta_forcar_household_externo() throws Exception {
+		RegistrationResponse ana = registrationService.register(new RegistrationRequest("Ana", "payload-ana@local.invalid", "senha123", "Casa da Ana"));
+		RegistrationResponse bruno = registrationService.register(new RegistrationRequest("Bruno", "payload-bruno@local.invalid", "senha123", "Casa do Bruno"));
+		String tokenAna = ApiAuthTestSupport.accessToken(mockMvc, objectMapper, "payload-ana@local.invalid", "senha123");
+
+		mockMvc.perform(post("/api/v1/email-ingestion/sources")
+				.header("Authorization", "Bearer " + tokenAna)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{"sourceAccount":"financeiro-payload@gmail.com"}
+					"""))
+			.andExpect(status().isCreated());
+
+		mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				"""
+					{
+					  "householdId": %d,
+					  "sourceAccount":"financeiro-payload@gmail.com",
+					  "externalMessageId":"msg-household-forcado-1",
+					  "sender":"conta@claro.com.br",
+					  "subject":"Claro Internet março",
+					  "receivedAt":"2026-03-19T10:15:30Z",
+					  "merchantOrPayee":"Claro Internet",
+					  "suggestedCategoryName":"Casa",
+					  "suggestedSubcategoryName":"Internet",
+					  "totalAmount":120.00,
+					  "dueDate":"2026-03-25",
+					  "currency":"BRL",
+					  "summary":"Cobrança recorrente mensal",
+					  "classification":"RECURRING_BILL",
+					  "confidence":0.96,
+					  "rawReference":"gmail:msg-household-forcado-1",
+					  "desiredDecision":"AUTO_IMPORT"
+					}
+					""".formatted(bruno.householdId())
+			))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("BUSINESS_RULE"));
+
+		org.assertj.core.api.Assertions.assertThat(expenseRepository.findAllByHouseholdId(ana.householdId())).isEmpty();
+		org.assertj.core.api.Assertions.assertThat(expenseRepository.findAllByHouseholdId(bruno.householdId())).isEmpty();
 	}
 
 	private String validRecurringBillPayload(String sourceAccount, String messageId, String categoryName, String subcategoryName, double confidence) {

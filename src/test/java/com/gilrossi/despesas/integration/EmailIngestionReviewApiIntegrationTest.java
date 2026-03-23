@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static com.gilrossi.despesas.support.OperationalRequestSignatureTestSupport.signedOperationalPost;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,8 +37,6 @@ import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
 @SpringBootTest
 @AutoConfigureMockMvc
 class EmailIngestionReviewApiIntegrationTest {
-
-	private static final String OPERATIONS_TOKEN = "test-operational-email-ingestion-token";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -218,10 +217,10 @@ class EmailIngestionReviewApiIntegrationTest {
 	}
 
 	private Long createOperationalCandidate(String sourceAccount, String messageId, double confidence) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/operations/email-ingestions")
-				.header("Authorization", "Bearer " + OPERATIONS_TOKEN)
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(validRecurringBillPayload(sourceAccount, messageId, confidence)))
+		String response = mockMvc.perform(signedOperationalPost(
+				"/api/v1/operations/email-ingestions",
+				validRecurringBillPayload(sourceAccount, messageId, confidence)
+			))
 			.andExpect(status().isOk())
 			.andReturn()
 			.getResponse()

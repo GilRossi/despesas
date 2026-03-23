@@ -52,10 +52,13 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	OperationalBearerTokenAuthenticationFilter operationalBearerTokenAuthenticationFilter(
-		OperationalEmailIngestionProperties properties
+	OperationalSignedRequestAuthenticationFilter operationalSignedRequestAuthenticationFilter(
+		OperationalEmailIngestionProperties properties,
+		OperationalRequestSignatureVerifier signatureVerifier,
+		OperationalEmailIngestionAuditLogger auditLogger,
+		ObjectMapper objectMapper
 	) {
-		return new OperationalBearerTokenAuthenticationFilter(properties);
+		return new OperationalSignedRequestAuthenticationFilter(properties, signatureVerifier, auditLogger, objectMapper);
 	}
 
 	@Bean
@@ -75,7 +78,7 @@ public class SecurityConfig {
 		ApiAuthenticationEntryPoint authenticationEntryPoint,
 		ApiAccessDeniedHandler accessDeniedHandler,
 		ApiBearerTokenAuthenticationFilter apiBearerTokenAuthenticationFilter,
-		OperationalBearerTokenAuthenticationFilter operationalBearerTokenAuthenticationFilter
+		OperationalSignedRequestAuthenticationFilter operationalSignedRequestAuthenticationFilter
 	) throws Exception {
 		http.securityMatcher("/api/**")
 			.csrf(csrf -> csrf.disable())
@@ -85,8 +88,8 @@ public class SecurityConfig {
 				.requestMatchers("/api/v1/operations/**").hasRole("OPERATIONAL_EMAIL_INGESTION")
 				.requestMatchers("/api/v1/auth/me").authenticated()
 				.anyRequest().authenticated())
-			.addFilterBefore(operationalBearerTokenAuthenticationFilter, BasicAuthenticationFilter.class)
-			.addFilterAfter(apiBearerTokenAuthenticationFilter, OperationalBearerTokenAuthenticationFilter.class)
+			.addFilterBefore(operationalSignedRequestAuthenticationFilter, BasicAuthenticationFilter.class)
+			.addFilterAfter(apiBearerTokenAuthenticationFilter, OperationalSignedRequestAuthenticationFilter.class)
 			.exceptionHandling(exception -> exception
 				.authenticationEntryPoint(authenticationEntryPoint)
 				.accessDeniedHandler(accessDeniedHandler));
