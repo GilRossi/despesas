@@ -1,6 +1,6 @@
 # Runtime de producao
 
-Este documento define o runtime oficial de producao sem ainda executar deploy real.
+Este documento define o runtime oficial de producao e documenta o estado atual de deploy: backend e Flutter Web ja possuem CD real, mas ainda sem release coordenada completa com n8n.
 
 ## Objetivo
 

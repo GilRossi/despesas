@@ -202,7 +202,7 @@ src/main/java/com/gilrossi/despesas/
 ├── payment/         # pagamentos
 ├── security/        # Spring Security, token service e providers
 ├── service/         # adaptador do fluxo web legado para o domínio atual
-└── model/           # DTO/modelo usado pela casca MVC
+└── model/           # DTOs e modelos auxiliares/legados fora da frente oficial
 ```
 
 Divisão de responsabilidades:
