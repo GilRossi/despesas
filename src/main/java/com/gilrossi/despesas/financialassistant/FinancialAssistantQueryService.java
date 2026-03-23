@@ -20,76 +20,99 @@ public class FinancialAssistantQueryService {
 	private static final Logger log = LoggerFactory.getLogger(FinancialAssistantQueryService.class);
 
 	private final FinancialAssistantIntentResolver intentResolver;
+	private final FinancialAssistantAccessContextProvider accessContextProvider;
 	private final FinancialAssistantAnalyticsService analyticsService;
 	private final FinancialAssistantInsightsService insightsService;
 	private final FinancialAssistantRecommendationService recommendationService;
 	private final FinancialAssistantConversationGateway conversationGateway;
+	private final FinancialAssistantAuditLogger auditLogger;
 
 	public FinancialAssistantQueryService(
 		FinancialAssistantIntentResolver intentResolver,
+		FinancialAssistantAccessContextProvider accessContextProvider,
 		FinancialAssistantAnalyticsService analyticsService,
 		FinancialAssistantInsightsService insightsService,
 		FinancialAssistantRecommendationService recommendationService,
-		FinancialAssistantConversationGateway conversationGateway
+		FinancialAssistantConversationGateway conversationGateway,
+		FinancialAssistantAuditLogger auditLogger
 	) {
 		this.intentResolver = intentResolver;
+		this.accessContextProvider = accessContextProvider;
 		this.analyticsService = analyticsService;
 		this.insightsService = insightsService;
 		this.recommendationService = recommendationService;
 		this.conversationGateway = conversationGateway;
+		this.auditLogger = auditLogger;
 	}
 
 	@Transactional(readOnly = true)
 	public FinancialAssistantQueryResponse ask(FinancialAssistantQueryRequest request) {
-		YearMonth referenceMonth = FinancialAssistantSupport.resolveReferenceMonth(request.referenceMonth());
-		ResolvedFinancialAssistantQuery resolved = intentResolver.resolve(request.question(), referenceMonth);
-		FinancialAssistantPeriodSummaryResponse summary = analyticsService.summarize(resolved.referenceMonth().atDay(1), resolved.referenceMonth().atEndOfMonth());
-		FinancialAssistantInsightsResponse insights = insightsService.insights(resolved.referenceMonth());
-		FinancialAssistantRecommendationsResponse recommendations = recommendationService.recommendations(resolved.referenceMonth());
-		CategorySpendingResponse highestCategory = summary.categoryTotals().isEmpty() ? null : summary.categoryTotals().getFirst();
-		List<TopExpenseResponse> topExpenses = analyticsService.topExpenses(resolved.referenceMonth(), 5);
-		String answer = fallbackAnswer(resolved, summary, highestCategory, insights, recommendations.recommendations(), topExpenses);
-		FinancialAssistantQueryMode mode = FinancialAssistantQueryMode.FALLBACK;
-		FinancialAssistantAiUsage aiUsage = null;
+		FinancialAssistantAccessContext context = null;
+		try {
+			context = accessContextProvider.requireContext();
+			auditLogger.queryStarted(context, request.referenceMonth());
+			YearMonth referenceMonth = FinancialAssistantSupport.resolveReferenceMonth(request.referenceMonth());
+			ResolvedFinancialAssistantQuery resolved = intentResolver.resolve(request.question(), referenceMonth, context.householdId());
+			FinancialAssistantPeriodSummaryResponse summary = analyticsService.summarize(
+				context,
+				resolved.referenceMonth().atDay(1),
+				resolved.referenceMonth().atEndOfMonth()
+			);
+			FinancialAssistantInsightsResponse insights = insightsService.insights(context, resolved.referenceMonth());
+			FinancialAssistantRecommendationsResponse recommendations = recommendationService.recommendations(context, resolved.referenceMonth());
+			CategorySpendingResponse highestCategory = summary.categoryTotals().isEmpty() ? null : summary.categoryTotals().getFirst();
+			List<TopExpenseResponse> topExpenses = analyticsService.topExpenses(context, resolved.referenceMonth(), 5);
+			String answer = fallbackAnswer(resolved, summary, highestCategory, insights, recommendations.recommendations(), topExpenses);
+			FinancialAssistantQueryMode mode = FinancialAssistantQueryMode.FALLBACK;
+			FinancialAssistantAiUsage aiUsage = null;
 
-		if (conversationGateway.isAvailable() && shouldUseAi(resolved, summary)) {
-			try {
-				FinancialAssistantConversationResult conversationResult = conversationGateway.answer(new FinancialAssistantConversationRequest(
-					request.question(),
-					resolved.referenceMonth().toString(),
-					resolved.intent().name(),
-					resolved.categoryName() == null ? "" : resolved.categoryName()
-				));
-				answer = conversationResult.answer();
-				aiUsage = conversationResult.usage();
-				mode = FinancialAssistantQueryMode.AI;
-			} catch (FinancialAssistantGatewayException exception) {
-				Throwable rootCause = FinancialAssistantAiFailureClassifier.rootCause(exception);
-				log.warn(
-					"Financial assistant AI fallback activated category={} intent={} month={} exceptionClass={}",
-					exception.category(),
-					resolved.intent(),
-					resolved.referenceMonth(),
-					rootCause.getClass().getSimpleName()
-				);
-				mode = FinancialAssistantQueryMode.FALLBACK;
+			if (conversationGateway.isAvailable() && shouldUseAi(resolved, summary)) {
+				try {
+					FinancialAssistantConversationResult conversationResult = conversationGateway.answer(new FinancialAssistantConversationRequest(
+						request.question(),
+						resolved.referenceMonth().toString(),
+						resolved.intent().name(),
+						resolved.categoryName() == null ? "" : resolved.categoryName()
+					));
+					answer = conversationResult.answer();
+					aiUsage = conversationResult.usage();
+					mode = FinancialAssistantQueryMode.AI;
+				} catch (FinancialAssistantGatewayException exception) {
+					Throwable rootCause = FinancialAssistantAiFailureClassifier.rootCause(exception);
+					log.warn(
+						"Financial assistant AI fallback activated category={} intent={} month={} exceptionClass={}",
+						exception.category(),
+						resolved.intent(),
+						resolved.referenceMonth(),
+						rootCause.getClass().getSimpleName()
+					);
+					mode = FinancialAssistantQueryMode.FALLBACK;
+				}
 			}
-		}
 
-		return new FinancialAssistantQueryResponse(
-			request.question(),
-			mode,
-			resolved.intent(),
-			answer,
-			summary,
-			insights.monthComparison(),
-			highestCategory,
-			topExpenses,
-			insights.increaseAlerts(),
-			insights.recurringExpenses(),
-			recommendations.recommendations(),
-			aiUsage
-		);
+			FinancialAssistantQueryResponse response = new FinancialAssistantQueryResponse(
+				request.question(),
+				mode,
+				resolved.intent(),
+				answer,
+				summary,
+				insights.monthComparison(),
+				highestCategory,
+				topExpenses,
+				insights.increaseAlerts(),
+				insights.recurringExpenses(),
+				recommendations.recommendations(),
+				aiUsage
+			);
+			auditLogger.queryCompleted(context, resolved.intent(), mode);
+			return response;
+		} catch (FinancialAssistantContextException exception) {
+			auditLogger.queryDenied(exception);
+			throw exception;
+		} catch (RuntimeException exception) {
+			auditLogger.queryFailed(context, exception);
+			throw exception;
+		}
 	}
 
 	private boolean shouldUseAi(

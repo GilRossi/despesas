@@ -21,7 +21,6 @@ import com.gilrossi.despesas.expense.ExpenseRepository;
 import com.gilrossi.despesas.payment.Payment;
 import com.gilrossi.despesas.payment.PaymentMethod;
 import com.gilrossi.despesas.payment.PaymentRepository;
-import com.gilrossi.despesas.security.CurrentHouseholdProvider;
 
 @ExtendWith(MockitoExtension.class)
 class FinancialAssistantAnalyticsServiceTest {
@@ -33,14 +32,14 @@ class FinancialAssistantAnalyticsServiceTest {
 	private PaymentRepository paymentRepository;
 
 	@Mock
-	private CurrentHouseholdProvider currentHouseholdProvider;
+	private FinancialAssistantAccessContextProvider accessContextProvider;
 
 	private FinancialAssistantAnalyticsService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new FinancialAssistantAnalyticsService(expenseRepository, paymentRepository, currentHouseholdProvider);
-		when(currentHouseholdProvider.requireHouseholdId()).thenReturn(7L);
+		service = new FinancialAssistantAnalyticsService(expenseRepository, paymentRepository, accessContextProvider);
+		when(accessContextProvider.requireContext()).thenReturn(new FinancialAssistantAccessContext(1L, 7L, "OWNER"));
 	}
 
 	@Test

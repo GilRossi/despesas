@@ -13,16 +13,27 @@ public class FinancialAssistantRecommendationService {
 
 	private final FinancialAssistantAnalyticsService analyticsService;
 	private final FinancialAssistantInsightsService insightsService;
+	private final FinancialAssistantAccessContextProvider accessContextProvider;
 
-	public FinancialAssistantRecommendationService(FinancialAssistantAnalyticsService analyticsService, FinancialAssistantInsightsService insightsService) {
+	public FinancialAssistantRecommendationService(
+		FinancialAssistantAnalyticsService analyticsService,
+		FinancialAssistantInsightsService insightsService,
+		FinancialAssistantAccessContextProvider accessContextProvider
+	) {
 		this.analyticsService = analyticsService;
 		this.insightsService = insightsService;
+		this.accessContextProvider = accessContextProvider;
 	}
 
 	@Transactional(readOnly = true)
 	public FinancialAssistantRecommendationsResponse recommendations(YearMonth referenceMonth) {
-		FinancialAssistantPeriodSummaryResponse summary = analyticsService.summarize(referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
-		FinancialAssistantInsightsResponse insights = insightsService.insights(referenceMonth);
+		return recommendations(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	FinancialAssistantRecommendationsResponse recommendations(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
+		FinancialAssistantPeriodSummaryResponse summary = analyticsService.summarize(context, referenceMonth.atDay(1), referenceMonth.atEndOfMonth());
+		FinancialAssistantInsightsResponse insights = insightsService.insights(context, referenceMonth);
 		List<RecommendationResponse> recommendations = new ArrayList<>();
 
 		if (summary.totalExpenses() == 0) {

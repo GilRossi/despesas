@@ -2,6 +2,7 @@ package com.gilrossi.despesas.integration;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,6 +25,9 @@ import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.expense.Expense;
 import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseRepository;
+import com.gilrossi.despesas.identity.AppUser;
+import com.gilrossi.despesas.identity.AppUserRepository;
+import com.gilrossi.despesas.identity.PlatformUserRole;
 import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationResponse;
 import com.gilrossi.despesas.identity.RegistrationService;
@@ -49,6 +54,12 @@ class FinancialAssistantIntegrationTest {
 
 	@Autowired
 	private ExpenseRepository expenseRepository;
+
+	@Autowired
+	private AppUserRepository appUserRepository;
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	@Test
 	void deve_respeitar_isolamento_por_household_e_responder_em_fallback_sem_ia() throws Exception {
@@ -104,18 +115,21 @@ class FinancialAssistantIntegrationTest {
 			.andExpect(jsonPath("$.data.totalAmount").value(300.00))
 			.andExpect(jsonPath("$.data.categoryTotals[0].categoryName").value("Transporte"));
 
-		mockMvc.perform(post("/api/v1/financial-assistant/query")
-				.header("Authorization", "Bearer " + tokenAna)
-				.contentType(MediaType.APPLICATION_JSON)
+			mockMvc.perform(post("/api/v1/financial-assistant/query")
+					.header("Authorization", "Bearer " + tokenAna)
+					.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
 					  "question":"Onde estou gastando mais?",
 					  "referenceMonth":"2026-03"
 					}
-					"""))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.mode").value("FALLBACK"))
-			.andExpect(jsonPath("$.data.highestSpendingCategory.categoryName").value("Moradia"));
+						"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.mode").value("FALLBACK"))
+				.andExpect(jsonPath("$.data.highestSpendingCategory.categoryName").value("Moradia"))
+				.andExpect(jsonPath("$.data.topExpenses[0].description").value("Aluguel março"))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Combustível março"))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Transporte"))));
 	}
 
 	@Test
@@ -190,7 +204,72 @@ class FinancialAssistantIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.mode").value("FALLBACK"))
 			.andExpect(jsonPath("$.data.monthComparison.currentMonth").value("2026-03"))
-			.andExpect(jsonPath("$.data.increaseAlerts[0].categoryName").value("Lazer"))
-			.andExpect(jsonPath("$.data.answer").value("Lazer aumentou 400.00 em relacao ao mes anterior, um crescimento de 100.00%."));
+				.andExpect(jsonPath("$.data.increaseAlerts[0].categoryName").value("Lazer"))
+				.andExpect(jsonPath("$.data.answer").value("Lazer aumentou 400.00 em relacao ao mes anterior, um crescimento de 100.00%."));
+	}
+
+	@Test
+	void deve_negar_assistente_para_platform_admin_sem_household_ativo() throws Exception {
+		String adminEmail = "assistant-platform-admin@local.invalid";
+		appUserRepository.save(new AppUser(
+			"Platform Admin",
+			adminEmail,
+			passwordEncoder.encode("senha123"),
+			PlatformUserRole.PLATFORM_ADMIN
+		));
+
+		String adminToken = ApiAuthTestSupport.accessToken(mockMvc, objectMapper, adminEmail, "senha123");
+
+		mockMvc.perform(post("/api/v1/financial-assistant/query")
+				.header("Authorization", "Bearer " + adminToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "question":"Como posso economizar este mês?",
+					  "referenceMonth":"2026-03"
+					}
+					"""))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.message").value("Active household membership is required for financial assistant queries"));
+	}
+
+	@Test
+	void deve_nao_resolver_categoria_que_existe_apenas_em_outro_household() throws Exception {
+		RegistrationResponse ana = registrationService.register(new RegistrationRequest("Ana", "assistant-scope-ana@local.invalid", "senha123", "Casa da Ana"));
+		RegistrationResponse bruno = registrationService.register(new RegistrationRequest("Bruno", "assistant-scope-bruno@local.invalid", "senha456", "Casa do Bruno"));
+
+		Category moradiaAna = categoryRepository.save(ana.householdId(), new Category(null, "Moradia", true));
+		subcategoryRepository.save(ana.householdId(), new Subcategory(null, moradiaAna.getId(), "Aluguel", true));
+		Category transporteBruno = categoryRepository.save(bruno.householdId(), new Category(null, "Transporte", true));
+		Subcategory combustivelBruno = subcategoryRepository.save(bruno.householdId(), new Subcategory(null, transporteBruno.getId(), "Combustível", true));
+		expenseRepository.save(new Expense(
+			bruno.householdId(),
+			"Combustível março",
+			new BigDecimal("300.00"),
+			LocalDate.of(2026, 3, 8),
+			ExpenseContext.VEICULO,
+			transporteBruno.getId(),
+			transporteBruno.getName(),
+			combustivelBruno.getId(),
+			combustivelBruno.getName(),
+			null
+		));
+
+		String tokenAna = ApiAuthTestSupport.accessToken(mockMvc, objectMapper, "assistant-scope-ana@local.invalid", "senha123");
+
+		mockMvc.perform(post("/api/v1/financial-assistant/query")
+				.header("Authorization", "Bearer " + tokenAna)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "question":"Quanto gastei com transporte?",
+					  "referenceMonth":"2026-03"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.intent").value("UNKNOWN"))
+			.andExpect(jsonPath("$.data.answer").value("Nao consegui identificar uma intencao financeira especifica. Posso ajudar com resumo do mes, maiores gastos, comparacao entre meses, recorrencias ou economia."))
+			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Combustível março"))))
+			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Transporte"))));
 	}
 }

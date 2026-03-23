@@ -9,17 +9,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class FinancialAssistantInsightsService {
 
 	private final FinancialAssistantAnalyticsService analyticsService;
+	private final FinancialAssistantAccessContextProvider accessContextProvider;
 
-	public FinancialAssistantInsightsService(FinancialAssistantAnalyticsService analyticsService) {
+	public FinancialAssistantInsightsService(
+		FinancialAssistantAnalyticsService analyticsService,
+		FinancialAssistantAccessContextProvider accessContextProvider
+	) {
 		this.analyticsService = analyticsService;
+		this.accessContextProvider = accessContextProvider;
 	}
 
 	@Transactional(readOnly = true)
 	public FinancialAssistantInsightsResponse insights(YearMonth referenceMonth) {
+		return insights(accessContextProvider.requireContext(), referenceMonth);
+	}
+
+	@Transactional(readOnly = true)
+	FinancialAssistantInsightsResponse insights(FinancialAssistantAccessContext context, YearMonth referenceMonth) {
 		return new FinancialAssistantInsightsResponse(
-			analyticsService.compareMonths(referenceMonth),
-			analyticsService.increaseAlerts(referenceMonth),
-			analyticsService.recurringExpenses(referenceMonth)
+			analyticsService.compareMonths(context, referenceMonth),
+			analyticsService.increaseAlerts(context, referenceMonth),
+			analyticsService.recurringExpenses(context, referenceMonth)
 		);
 	}
 }

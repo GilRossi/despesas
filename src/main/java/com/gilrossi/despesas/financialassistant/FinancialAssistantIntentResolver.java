@@ -7,46 +7,56 @@ import org.springframework.stereotype.Component;
 
 import com.gilrossi.despesas.catalog.category.Category;
 import com.gilrossi.despesas.catalog.category.CategoryRepository;
-import com.gilrossi.despesas.security.CurrentHouseholdProvider;
 
 @Component
 public class FinancialAssistantIntentResolver {
 
-	private final CurrentHouseholdProvider currentHouseholdProvider;
+	private final FinancialAssistantAccessContextProvider accessContextProvider;
 	private final CategoryRepository categoryRepository;
 
-	public FinancialAssistantIntentResolver(CurrentHouseholdProvider currentHouseholdProvider, CategoryRepository categoryRepository) {
-		this.currentHouseholdProvider = currentHouseholdProvider;
+	public FinancialAssistantIntentResolver(
+		FinancialAssistantAccessContextProvider accessContextProvider,
+		CategoryRepository categoryRepository
+	) {
+		this.accessContextProvider = accessContextProvider;
 		this.categoryRepository = categoryRepository;
 	}
 
 	public ResolvedFinancialAssistantQuery resolve(String question, YearMonth defaultReferenceMonth) {
+		return resolve(question, defaultReferenceMonth, accessContextProvider.requireContext().householdId());
+	}
+
+	public ResolvedFinancialAssistantQuery resolve(
+		String question,
+		YearMonth defaultReferenceMonth,
+		Long householdId
+	) {
 		String normalizedQuestion = FinancialAssistantSupport.normalizeText(question);
-		String categoryName = resolveCategoryName(normalizedQuestion);
+		String categoryName = resolveCategoryName(normalizedQuestion, householdId);
 
 		if (normalizedQuestion.contains("economiz")) {
-			return resolvedQuery(FinancialAssistantIntent.SAVINGS_RECOMMENDATIONS, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.SAVINGS_RECOMMENDATIONS, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (normalizedQuestion.contains("recorrent") || normalizedQuestion.contains("todo mes") || normalizedQuestion.contains("todo mes") || normalizedQuestion.contains("fix")) {
-			return resolvedQuery(FinancialAssistantIntent.RECURRING_EXPENSES, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.RECURRING_EXPENSES, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (normalizedQuestion.contains("aument") || normalizedQuestion.contains("subiu")) {
-			return resolvedQuery(FinancialAssistantIntent.INCREASE_ALERTS, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.INCREASE_ALERTS, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (categoryName != null && (normalizedQuestion.contains("quanto") || normalizedQuestion.contains("gastei") || normalizedQuestion.contains("total"))) {
 			return resolvedQuery(FinancialAssistantIntent.TOTAL_BY_CATEGORY_IN_PERIOD, normalizedQuestion, defaultReferenceMonth, categoryName);
 		}
 		if (normalizedQuestion.contains("mes passado") || normalizedQuestion.contains("compar") || normalizedQuestion.contains("relacao ao mes passado")) {
-			return resolvedQuery(FinancialAssistantIntent.MONTH_OVER_MONTH_CHANGE, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.MONTH_OVER_MONTH_CHANGE, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (normalizedQuestion.contains("maiores gastos") || normalizedQuestion.contains("maiores despesas") || normalizedQuestion.contains("top gastos") || normalizedQuestion.contains("top despesas")) {
-			return resolvedQuery(FinancialAssistantIntent.TOP_EXPENSES_IN_PERIOD, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.TOP_EXPENSES_IN_PERIOD, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (normalizedQuestion.contains("onde estou gastando mais") || normalizedQuestion.contains("gasto mais") || normalizedQuestion.contains("categoria que mais")) {
-			return resolvedQuery(FinancialAssistantIntent.HIGHEST_SPENDING_CATEGORY, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.HIGHEST_SPENDING_CATEGORY, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		if (normalizedQuestion.contains("resumo") || normalizedQuestion.contains("este mes") || normalizedQuestion.contains("esse mes") || normalizedQuestion.contains("como estou")) {
-			return resolvedQuery(FinancialAssistantIntent.PERIOD_SUMMARY, normalizedQuestion, defaultReferenceMonth);
+			return resolvedQuery(FinancialAssistantIntent.PERIOD_SUMMARY, normalizedQuestion, defaultReferenceMonth, householdId);
 		}
 		return resolvedQuery(FinancialAssistantIntent.UNKNOWN, normalizedQuestion, defaultReferenceMonth, categoryName);
 	}
@@ -54,9 +64,10 @@ public class FinancialAssistantIntentResolver {
 	private ResolvedFinancialAssistantQuery resolvedQuery(
 		FinancialAssistantIntent intent,
 		String normalizedQuestion,
-		YearMonth defaultReferenceMonth
+		YearMonth defaultReferenceMonth,
+		Long householdId
 	) {
-		return resolvedQuery(intent, normalizedQuestion, defaultReferenceMonth, resolveCategoryName(normalizedQuestion));
+		return resolvedQuery(intent, normalizedQuestion, defaultReferenceMonth, resolveCategoryName(normalizedQuestion, householdId));
 	}
 
 	private ResolvedFinancialAssistantQuery resolvedQuery(
@@ -79,8 +90,7 @@ public class FinancialAssistantIntentResolver {
 		return intent == FinancialAssistantIntent.INCREASE_ALERTS || intent == FinancialAssistantIntent.MONTH_OVER_MONTH_CHANGE;
 	}
 
-	private String resolveCategoryName(String normalizedQuestion) {
-		Long householdId = currentHouseholdProvider.requireHouseholdId();
+	private String resolveCategoryName(String normalizedQuestion, Long householdId) {
 		return categoryRepository.findActiveByHouseholdId(householdId).stream()
 			.map(Category::getName)
 			.filter(name -> normalizedQuestion.contains(FinancialAssistantSupport.normalizeText(name)))
