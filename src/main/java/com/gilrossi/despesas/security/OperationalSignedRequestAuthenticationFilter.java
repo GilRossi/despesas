@@ -17,23 +17,28 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gilrossi.despesas.api.v1.shared.ApiErrorResponse;
 import com.gilrossi.despesas.api.v1.shared.ApiErrorResponses;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 
 public class OperationalSignedRequestAuthenticationFilter extends OncePerRequestFilter {
 
 	private final OperationalEmailIngestionProperties properties;
 	private final OperationalRequestSignatureVerifier signatureVerifier;
 	private final OperationalEmailIngestionAuditLogger auditLogger;
+	private final AbuseProtectionService abuseProtectionService;
 	private final ObjectMapper objectMapper;
 
 	public OperationalSignedRequestAuthenticationFilter(
 		OperationalEmailIngestionProperties properties,
 		OperationalRequestSignatureVerifier signatureVerifier,
 		OperationalEmailIngestionAuditLogger auditLogger,
+		AbuseProtectionService abuseProtectionService,
 		ObjectMapper objectMapper
 	) {
 		this.properties = properties;
 		this.signatureVerifier = signatureVerifier;
 		this.auditLogger = auditLogger;
+		this.abuseProtectionService = abuseProtectionService;
 		this.objectMapper = objectMapper;
 	}
 
@@ -67,7 +72,18 @@ public class OperationalSignedRequestAuthenticationFilter extends OncePerRequest
 				verificationResult.nonceFingerprint(),
 				verificationResult.bodyHashPrefix()
 			);
+			abuseProtectionService.checkOperationalEmailIngestion(verificationResult.keyId(), wrappedRequest.getRequestURI());
 			filterChain.doFilter(wrappedRequest, response);
+		} catch (RateLimitExceededException exception) {
+			OperationalRequestVerificationResult verificationResult = currentVerification();
+			SecurityContextHolder.clearContext();
+			auditLogger.requestRateLimited(
+				wrappedRequest.getRequestURI(),
+				verificationResult == null ? null : verificationResult.keyId(),
+				verificationResult == null ? null : verificationResult.sourceAccount(),
+				exception
+			);
+			writeRateLimited(response, exception);
 		} catch (OperationalRequestValidationException exception) {
 			SecurityContextHolder.clearContext();
 			auditLogger.requestRejected(wrappedRequest.getRequestURI(), exception);
@@ -87,5 +103,19 @@ public class OperationalSignedRequestAuthenticationFilter extends OncePerRequest
 		response.setStatus(exception.getReason().httpStatus().value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		objectMapper.writeValue(response.getWriter(), body);
+	}
+
+	private void writeRateLimited(HttpServletResponse response, RateLimitExceededException exception) throws IOException {
+		response.setStatus(429);
+		response.setHeader("Retry-After", String.valueOf(exception.getRetryAfterSeconds()));
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+		objectMapper.writeValue(response.getWriter(), ApiErrorResponses.body("RATE_LIMITED", "Too many requests"));
+	}
+
+	private OperationalRequestVerificationResult currentVerification() {
+		Object details = SecurityContextHolder.getContext().getAuthentication() == null
+			? null
+			: SecurityContextHolder.getContext().getAuthentication().getDetails();
+		return details instanceof OperationalRequestVerificationResult verificationResult ? verificationResult : null;
 	}
 }

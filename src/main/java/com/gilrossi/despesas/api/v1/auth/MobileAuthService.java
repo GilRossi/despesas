@@ -12,6 +12,9 @@ import com.gilrossi.despesas.security.ApiTokenService;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
 import com.gilrossi.despesas.security.RefreshTokenRotationResult;
 import com.gilrossi.despesas.security.RefreshTokenService;
+import com.gilrossi.despesas.security.SecurityAuditLogger;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 
 @Service
 public class MobileAuthService {
@@ -19,18 +22,30 @@ public class MobileAuthService {
 	private final AuthenticationManager authenticationManager;
 	private final ApiTokenService apiTokenService;
 	private final RefreshTokenService refreshTokenService;
+	private final AbuseProtectionService abuseProtectionService;
+	private final SecurityAuditLogger securityAuditLogger;
 
 	public MobileAuthService(
 		AuthenticationManager authenticationManager,
 		ApiTokenService apiTokenService,
-		RefreshTokenService refreshTokenService
+		RefreshTokenService refreshTokenService,
+		AbuseProtectionService abuseProtectionService,
+		SecurityAuditLogger securityAuditLogger
 	) {
 		this.authenticationManager = authenticationManager;
 		this.apiTokenService = apiTokenService;
 		this.refreshTokenService = refreshTokenService;
+		this.abuseProtectionService = abuseProtectionService;
+		this.securityAuditLogger = securityAuditLogger;
 	}
 
 	public MobileAuthResponse login(LoginRequest request) {
+		try {
+			abuseProtectionService.checkAuthLogin(request.email());
+		} catch (RateLimitExceededException exception) {
+			securityAuditLogger.loginRateLimited(request.email(), exception);
+			throw exception;
+		}
 		Authentication authentication = authenticationManager.authenticate(
 			UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password())
 		);

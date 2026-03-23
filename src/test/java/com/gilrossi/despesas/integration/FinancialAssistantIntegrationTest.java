@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.audit.PersistedAuditEvent;
+import com.gilrossi.despesas.audit.PersistedAuditEventRepository;
 import com.gilrossi.despesas.catalog.category.Category;
 import com.gilrossi.despesas.catalog.category.JpaCategoryRepositoryAdapter;
 import com.gilrossi.despesas.catalog.subcategory.JpaSubcategoryRepositoryAdapter;
@@ -31,6 +35,7 @@ import com.gilrossi.despesas.identity.PlatformUserRole;
 import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationResponse;
 import com.gilrossi.despesas.identity.RegistrationService;
+import com.gilrossi.despesas.ratelimit.RateLimitCounterRepository;
 import com.gilrossi.despesas.support.ApiAuthTestSupport;
 
 @SpringBootTest
@@ -60,6 +65,18 @@ class FinancialAssistantIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private PersistedAuditEventRepository persistedAuditEventRepository;
+
+	@Autowired
+	private RateLimitCounterRepository rateLimitCounterRepository;
+
+	@BeforeEach
+	void setUp() {
+		persistedAuditEventRepository.deleteAll();
+		rateLimitCounterRepository.deleteAll();
+	}
 
 	@Test
 	void deve_respeitar_isolamento_por_household_e_responder_em_fallback_sem_ia() throws Exception {
@@ -130,6 +147,10 @@ class FinancialAssistantIntegrationTest {
 				.andExpect(jsonPath("$.data.topExpenses[0].description").value("Aluguel março"))
 				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Combustível março"))))
 				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Transporte"))));
+
+		assertThat(persistedAuditEventRepository.findAll())
+			.extracting(PersistedAuditEvent::getEventType)
+			.contains("assistant_query_started", "assistant_query_completed");
 	}
 
 	@Test
@@ -231,6 +252,10 @@ class FinancialAssistantIntegrationTest {
 					"""))
 			.andExpect(status().isUnprocessableEntity())
 			.andExpect(jsonPath("$.message").value("Active household membership is required for financial assistant queries"));
+
+		assertThat(persistedAuditEventRepository.findAll())
+			.anyMatch(event -> "assistant_query_denied".equals(event.getEventType())
+				&& "ASSISTANT_INVALID_HOUSEHOLD_CONTEXT".equals(event.getDetailCode()));
 	}
 
 	@Test

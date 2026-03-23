@@ -1,6 +1,8 @@
 package com.gilrossi.despesas.api.v1.shared;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,6 +22,7 @@ import com.gilrossi.despesas.emailingestion.EmailIngestionReviewNotFoundExceptio
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
+import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 import com.gilrossi.despesas.security.SecurityAuditLogger;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,16 +47,23 @@ public class ApiExceptionHandler {
 	}
 
 	@ExceptionHandler(AuthenticationException.class)
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> unauthorized(AuthenticationException exception) {
+	public ResponseEntity<ApiErrorResponse> unauthorized(AuthenticationException exception) {
 		return ApiErrorResponses.unauthorized("Authentication failed");
 	}
 
 	@ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> forbidden(Exception exception, HttpServletRequest request) {
+	public ResponseEntity<ApiErrorResponse> forbidden(Exception exception, HttpServletRequest request) {
 		if (securityAuditLogger != null) {
 			securityAuditLogger.accessDenied(request);
 		}
 		return ApiErrorResponses.forbidden("Access denied");
+	}
+
+	@ExceptionHandler(RateLimitExceededException.class)
+	public ResponseEntity<ApiErrorResponse> tooManyRequests(RateLimitExceededException exception) {
+		return ResponseEntity.status(429)
+			.header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
+			.body(ApiErrorResponses.body("RATE_LIMITED", "Too many requests"));
 	}
 
 	@ExceptionHandler({
@@ -63,7 +73,7 @@ public class ApiExceptionHandler {
 		com.gilrossi.despesas.payment.ExpenseNotFoundException.class,
 		EmailIngestionReviewNotFoundException.class
 	})
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> notFound(RuntimeException exception) {
+	public ResponseEntity<ApiErrorResponse> notFound(RuntimeException exception) {
 		return ApiErrorResponses.notFound(exception.getMessage());
 	}
 
@@ -73,7 +83,7 @@ public class ApiExceptionHandler {
 		DuplicateSubcategoryException.class,
 		DataIntegrityViolationException.class
 	})
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> conflict(RuntimeException exception) {
+	public ResponseEntity<ApiErrorResponse> conflict(RuntimeException exception) {
 		return ApiErrorResponses.conflict(exception.getMessage());
 	}
 
@@ -83,12 +93,12 @@ public class ApiExceptionHandler {
 		IllegalArgumentException.class,
 		IllegalStateException.class
 	})
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> business(RuntimeException exception) {
+	public ResponseEntity<ApiErrorResponse> business(RuntimeException exception) {
 		return ApiErrorResponses.unprocessable(exception.getMessage());
 	}
 
 	@ExceptionHandler(Exception.class)
-	public org.springframework.http.ResponseEntity<ApiErrorResponse> internalError(Exception exception) {
+	public ResponseEntity<ApiErrorResponse> internalError(Exception exception) {
 		return ApiErrorResponses.internalError();
 	}
 }

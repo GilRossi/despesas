@@ -20,8 +20,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.audit.PersistedAuditEvent;
+import com.gilrossi.despesas.audit.PersistedAuditEventRepository;
 import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationService;
+import com.gilrossi.despesas.ratelimit.RateLimitCounterRepository;
 import com.gilrossi.despesas.security.OperationalEmailIngestionAuditLogger;
 import com.gilrossi.despesas.security.OperationalRequestSignatureSupport;
 import com.gilrossi.despesas.support.ApiAuthTestSupport;
@@ -44,10 +47,18 @@ class OperationalEmailIngestionSecurityIntegrationTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private PersistedAuditEventRepository persistedAuditEventRepository;
+
+	@Autowired
+	private RateLimitCounterRepository rateLimitCounterRepository;
+
 	private ListAppender<ILoggingEvent> logAppender;
 
 	@BeforeEach
 	void setUp() {
+		persistedAuditEventRepository.deleteAll();
+		rateLimitCounterRepository.deleteAll();
 		Logger logger = (Logger) LoggerFactory.getLogger(OperationalEmailIngestionAuditLogger.class);
 		logAppender = new ListAppender<>();
 		logAppender.start();
@@ -129,6 +140,21 @@ class OperationalEmailIngestionSecurityIntegrationTest {
 		assertThat(messages).noneMatch(message -> message.contains("financeiro-audit@gmail.com"));
 		assertThat(messages).noneMatch(message -> message.contains("nao-mapeado@gmail.com"));
 		assertThat(messages).noneMatch(message -> message.contains("segredo-invalido"));
+
+		List<PersistedAuditEvent> events = persistedAuditEventRepository.findAll();
+		assertThat(events).extracting(PersistedAuditEvent::getEventType).contains(
+			"operational_request_received",
+			"operational_request_rejected",
+			"operational_ingestion_source_rejected",
+			"operational_ingestion_accepted"
+		);
+		assertThat(events).anyMatch(event -> "operational_request_rejected".equals(event.getEventType())
+			&& "REPLAY_DETECTED".equals(event.getDetailCode()));
+		assertThat(events).anyMatch(event -> "operational_request_rejected".equals(event.getEventType())
+			&& "INVALID_SIGNATURE".equals(event.getDetailCode()));
+		assertThat(events).noneMatch(event -> contains(event.getSafeContextJson(), OperationalRequestSignatureTestSupport.TEST_SECRET));
+		assertThat(events).noneMatch(event -> contains(event.getPrimaryReference(), "financeiro-audit@gmail.com"));
+		assertThat(events).noneMatch(event -> contains(event.getPrimaryReference(), "nao-mapeado@gmail.com"));
 	}
 
 	private String recurringPayload(String sourceAccount, String messageId) {
@@ -152,5 +178,9 @@ class OperationalEmailIngestionSecurityIntegrationTest {
 			  "desiredDecision":"AUTO_IMPORT"
 			}
 			""".formatted(sourceAccount, messageId, messageId);
+	}
+
+	private boolean contains(String value, String fragment) {
+		return value != null && fragment != null && value.contains(fragment);
 	}
 }

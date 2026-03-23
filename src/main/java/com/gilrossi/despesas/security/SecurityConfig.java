@@ -19,14 +19,19 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gilrossi.despesas.audit.AuditTrailProperties;
 import com.gilrossi.despesas.identity.PlatformAdminBootstrapProperties;
+import com.gilrossi.despesas.ratelimit.AbuseProtectionService;
+import com.gilrossi.despesas.ratelimit.RateLimitProperties;
 
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties({
 	ApiSecurityProperties.class,
 	OperationalEmailIngestionProperties.class,
-	PlatformAdminBootstrapProperties.class
+	PlatformAdminBootstrapProperties.class,
+	AuditTrailProperties.class,
+	RateLimitProperties.class
 })
 public class SecurityConfig {
 
@@ -56,9 +61,16 @@ public class SecurityConfig {
 		OperationalEmailIngestionProperties properties,
 		OperationalRequestSignatureVerifier signatureVerifier,
 		OperationalEmailIngestionAuditLogger auditLogger,
+		AbuseProtectionService abuseProtectionService,
 		ObjectMapper objectMapper
 	) {
-		return new OperationalSignedRequestAuthenticationFilter(properties, signatureVerifier, auditLogger, objectMapper);
+		return new OperationalSignedRequestAuthenticationFilter(
+			properties,
+			signatureVerifier,
+			auditLogger,
+			abuseProtectionService,
+			objectMapper
+		);
 	}
 
 	@Bean
