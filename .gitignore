@@ -4,6 +4,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .agents/
+.agents*.zip
 .agents.md
 AGENTS.md
 TEAM_GUIDE.md

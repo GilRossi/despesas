@@ -168,17 +168,23 @@ Nunca pode ir para nenhum repositório:
 - chaves privadas
 - arquivos equivalentes a `secrets.txt` e `azure.txt`
 
-## Fluxo futuro de CI/CD
+## Fluxo atual de CI/CD documentado
 
 1. merge em `main` do backend ou Flutter
 2. GitHub Actions builda:
    - backend: `./mvnw -DskipTests spring-boot:build-image`
    - Flutter Web: `flutter build web --release --dart-define=API_BASE_URL=https://<app>`
-3. pipeline publica:
-   - imagem do backend
-   - artefato `build/web`
-4. VPS atualiza a stack Compose e deixa o Traefik externo rotear por labels
-5. smoke pos-deploy valida app, API, assistente e n8n
+3. os workflows de CD atuais publicam separadamente:
+   - backend: imagem carregada na VPS e `docker compose up -d --no-deps backend`
+   - Flutter Web: `build/web` sincronizado para `/srv/despesas/frontend-web/current/`
+4. o Traefik do host continua roteando por labels Docker para o backend e por mount do build web servido pelo backend
+5. o n8n permanece fora da esteira de deploy automatizado desta fase
+
+## Risco operacional atual
+
+- backend e Flutter Web ja possuem deploy real, mas ainda nao existe release atomica multi-repositorio
+- o contrato atual depende de manter compatibilidade entre a imagem do backend e o build web publicado separadamente
+- o preflight manual e o smoke pos-deploy continuam recomendados antes de tratar o runtime como totalmente alinhado
 
 ### GitHub Secrets esperados
 

@@ -137,8 +137,9 @@ Papel de cada workflow:
 
 Source of truth operacional:
 
-- os JSONs versionados em `projects/despesas/workflows/email-ingestion-v1` sao a definicao canonica
-- o runtime local usa `compose.yaml` e envs externas, mas nao e a origem oficial do produto
+- o repositório privado `/home/gil/n8n-local` e a definicao canonica dos workflows, docs operacionais e scripts seguros do n8n
+- a arvore `n8n/workflows/email-ingestion-v1` neste repositório backend e apenas um mirror/snapshot documental para referencia do ecossistema
+- o runtime local usa `compose.yaml` e envs externas, mas nao redefine a origem oficial do produto
 - credenciais reais ficam fora do Git e fora dos exports versionados
 
 ## Onde a IA Entra

@@ -19,7 +19,7 @@ Oferecer uma base consistente para controle de despesas domésticas, com separa�
 
 - bootstrap controlado do primeiro `PLATFORM_ADMIN`
 - provisionamento autenticado de household + owner por `PLATFORM_ADMIN`
-- criação autenticada de member pelo `HOUSEHOLD_OWNER` do próprio household
+- criação autenticada de member pelo `OWNER` do próprio household
 - bootstrap automático de catálogo inicial para household novo
 - login/refresh/me na API com Bearer token
 - gestão de membros do household via API
@@ -179,15 +179,15 @@ Essa suíte cobre testes unitários, slices web/API e integrações com H2.
 ### Suíte PostgreSQL/Flyway
 
 ```bash
-bash scripts/run-postgres-it.sh
+source scripts/runtime/load-governed-env.sh local && bash scripts/run-postgres-it.sh
 ```
 
-Esse script:
+Esse comando:
 - sobe o PostgreSQL local via `docker-compose`
 - cria um banco efêmero
 - executa as integrações que validam migrations Flyway, backfill legado e persistência real
 
-Ele depende de Docker funcional na máquina local.
+Ele depende de Docker funcional na máquina local e dos envs governados já carregados.
 
 ## Resumo da arquitetura atual
 
@@ -336,21 +336,21 @@ Detalhes operacionais e exports dos workflows estão em [`docs/n8n-email-ingesti
 
 Source of truth operacional:
 
-- workflows versionados em [`n8n/workflows/email-ingestion-v1`](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1)
-- `n8n-local/` apenas como workspace de runtime local, nunca como fonte canônica de definição
+- o repositório privado [`/home/gil/n8n-local`](/home/gil/n8n-local) e a fonte canônica dos workflows, docs operacionais e bootstrap seguro do n8n
+- a cópia em [`n8n/workflows/email-ingestion-v1`](/home/gil/workspace/claude/despesas/n8n/workflows/email-ingestion-v1) neste repositório e apenas um mirror/snapshot documental para referência do backend
 
 ## Modelo de household
 
-O sistema é multi-household por desenho de domínio:
+O sistema é multi-tenant por `household_id` no banco e na aplicação:
 
-- um usuário se registra com nome, email, senha e nome do household
-- o registro cria:
-  - `users`
-  - `households`
-  - `household_members`
-- o usuário inicial entra como `OWNER`
-- novos membros podem ser adicionados via API
-- isolamento por household é aplicado nos principais fluxos de catálogo, despesas, pagamentos e dashboard
+- não existe signup público
+- o primeiro `PLATFORM_ADMIN` nasce por bootstrap controlado de ambiente
+- `PLATFORM_ADMIN` provisiona `household` + `OWNER` por API autenticada
+- `OWNER` cria apenas `MEMBER` do próprio household
+- `MEMBER` não cria usuários nem households
+- isolamento por household é aplicado nos fluxos principais de catálogo, despesas, pagamentos, dashboard, review operations e assistente
+- cada usuário possui um único vínculo ativo de household por vez no modelo atual
+- cada `sourceAccount` operacional do e-mail ingestion é mapeada a um único household ativo por vez
 
 ## Catálogo, despesas e pagamentos
 
@@ -413,19 +413,23 @@ Observações importantes:
 - o backfill de `V9` migra dados legados para `expenses`
 - a tabela legada não deve ser dropada sem nova rodada explícita de reconciliação e validação
 
-## O que foi validado recentemente
+## O que esta coberto por automacao versionada
 
-No estado atual do projeto, o QA final validou:
+No estado atual do repositório, existe evidência versionada para:
 
-- front-door do Flutter Web
-- auth Bearer na API
-- fluxo principal de despesas no Flutter
-- sanity do Flutter Mobile contra a mesma API
-- regras críticas de API para household, catálogo, despesas e pagamentos
-- backfill legado com validação em PostgreSQL/Flyway
-- review operations por API
-- assistente financeiro por API
-- n8n ponta a ponta até review operations no Flutter Web
+- suíte principal `./mvnw test` cobrindo auth, household, catálogo, despesas, pagamentos, review operations, financial assistant e integrações relevantes
+- suíte PostgreSQL/Flyway para migrations e backfill legado
+- workflows GitHub Actions de CI/CD para backend e preflight do runtime de produção
+- build e testes do Flutter Web no repositório frontend oficial
+- helper de smoke real no repositório Flutter para login, refresh e listagem de despesas
+
+## O que ainda exige prova operacional ou visual
+
+Os pontos abaixo dependem de execução explícita fora desta documentação:
+
+- smoke ponta a ponta do n8n com caixa real
+- validação visual do front-door Flutter Web em ambiente publicado
+- aceite operacional coordenado entre deploy do backend, publicação do build web e runtime do n8n
 
 ## Ordem recomendada de subida
 
@@ -483,12 +487,11 @@ O produto está estável no escopo já validado, mas estes próximos passos faze
 
 Se você acabou de clonar o repositório:
 
-1. suba o PostgreSQL com `docker-compose up -d`
-2. defina `APP_SECURITY_TOKEN_SECRET`
-3. rode `./mvnw spring-boot:run`
-4. acesse `http://localhost:8080/`
-5. para validar a suíte padrão, rode `./mvnw test`
-6. para validar migrations e persistência real, rode `bash scripts/run-postgres-it.sh`
+1. suba o PostgreSQL com `scripts/runtime/run-local-postgres.sh`
+2. rode o backend com `scripts/runtime/run-local-backend.sh`
+3. acesse `http://localhost:8080/`
+4. para validar a suíte padrão, rode `./mvnw test`
+5. para validar migrations e persistência real, carregue os envs governados e rode `bash scripts/run-postgres-it.sh`
 
 ## Autor
 
