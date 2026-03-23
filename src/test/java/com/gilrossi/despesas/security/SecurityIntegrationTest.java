@@ -3,9 +3,11 @@ package com.gilrossi.despesas.security;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -83,6 +85,17 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 			.andExpect(jsonPath("$.fieldErrors").isArray())
 			.andExpect(jsonPath("$.fieldErrors").isEmpty());
+	}
+
+	@Test
+	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
+		mockMvc.perform(options("/api/v1/auth/login")
+				.header("Origin", "http://localhost:54721")
+				.header("Access-Control-Request-Method", "POST")
+				.header("Access-Control-Request-Headers", "content-type"))
+			.andExpect(status().isOk())
+			.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:54721"))
+			.andExpect(header().string("Access-Control-Allow-Methods", containsString("POST")));
 	}
 
 	@Test

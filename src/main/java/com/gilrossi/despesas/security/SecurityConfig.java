@@ -1,5 +1,7 @@
 package com.gilrossi.despesas.security;
 
+import java.util.List;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -11,12 +13,16 @@ import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.authentication.DefaultAuthenticationEventPublisher;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gilrossi.despesas.audit.AuditTrailProperties;
@@ -93,6 +99,7 @@ public class SecurityConfig {
 		OperationalSignedRequestAuthenticationFilter operationalSignedRequestAuthenticationFilter
 	) throws Exception {
 		http.securityMatcher("/api/**")
+			.cors(Customizer.withDefaults())
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(authorize -> authorize
@@ -106,6 +113,25 @@ public class SecurityConfig {
 				.authenticationEntryPoint(authenticationEntryPoint)
 				.accessDeniedHandler(accessDeniedHandler));
 		return http.build();
+	}
+
+	@Bean
+	CorsConfigurationSource corsConfigurationSource(ApiSecurityProperties properties) {
+		CorsConfiguration configuration = new CorsConfiguration();
+		List<String> allowedOriginPatterns = properties.corsAllowedOriginPatterns();
+		if (allowedOriginPatterns == null || allowedOriginPatterns.isEmpty()) {
+			allowedOriginPatterns = List.of("http://localhost:*", "http://127.0.0.1:*");
+		}
+		configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(List.of("*"));
+		configuration.setExposedHeaders(List.of("Retry-After"));
+		configuration.setAllowCredentials(false);
+		configuration.setMaxAge(3600L);
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/api/**", configuration);
+		return source;
 	}
 
 	@Bean
