@@ -52,18 +52,13 @@ Refresh-token revocation reasons also become explicit:
 - `PASSWORD_CHANGED`
 - `PASSWORD_RESET`
 
-## Minimal product UI delivered in this repository
+## Official product UI
 
-The Flutter source repository is not present here, so the incident-safe UI shipped from this repo is a same-origin static console:
+The official password UI must live only in the authenticated Flutter application:
 
-- path: `/password-console.html`
-
-It supports:
-
-- login against the same production API
-- authenticated self password change
-- platform-admin password reset for a specific user e-mail
-- local logout and session cleanup
+- any authenticated user changes their own password inside the authenticated app shell
+- `PLATFORM_ADMIN` performs controlled resets only from the authenticated platform-admin shell
+- this backend must not expose a public or parallel HTML password console
 
 ## Operational rule from now on
 
