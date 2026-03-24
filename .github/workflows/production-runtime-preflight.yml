@@ -47,6 +47,11 @@ jobs:
         run: chmod +x mvnw scripts/runtime/validate-production-compose.sh
 
       - name: Prepare placeholder production envs
+        env:
+          INPUT_APP_PUBLIC_HOST: ${{ inputs.app_public_host }}
+          INPUT_N8N_PUBLIC_HOST: ${{ inputs.n8n_public_host }}
+          INPUT_BACKEND_IMAGE: ${{ inputs.backend_image }}
+          INPUT_TRAEFIK_CERTRESOLVER: ${{ inputs.traefik_certresolver }}
         run: |
           export DESPESAS_ENV_ROOT="$RUNNER_TEMP/envs/despesas"
           mkdir -p "$DESPESAS_ENV_ROOT/prod"
