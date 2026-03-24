@@ -21,4 +21,6 @@ public interface RefreshTokenRecordRepository extends JpaRepository<RefreshToken
 	Optional<RefreshTokenRecord> findByTokenIdForUpdate(@Param("tokenId") String tokenId);
 
 	List<RefreshTokenRecord> findByFamilyIdAndRevokedAtIsNull(String familyId);
+
+	List<RefreshTokenRecord> findByUserIdAndRevokedAtIsNull(Long userId);
 }

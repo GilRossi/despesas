@@ -19,6 +19,7 @@ import com.gilrossi.despesas.catalog.subcategory.DuplicateSubcategoryException;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryNotFoundException;
 import com.gilrossi.despesas.emailingestion.EmailIngestionReviewActionNotAllowedException;
 import com.gilrossi.despesas.emailingestion.EmailIngestionReviewNotFoundException;
+import com.gilrossi.despesas.identity.AppUserNotFoundException;
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
@@ -67,6 +68,7 @@ public class ApiExceptionHandler {
 	}
 
 	@ExceptionHandler({
+		AppUserNotFoundException.class,
 		CategoryNotFoundException.class,
 		SubcategoryNotFoundException.class,
 		ExpenseNotFoundException.class,

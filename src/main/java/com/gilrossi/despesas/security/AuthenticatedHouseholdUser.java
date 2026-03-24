@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.security;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -19,20 +20,22 @@ public class AuthenticatedHouseholdUser implements UserDetails {
 	private final String name;
 	private final String username;
 	private final String password;
+	private final Instant credentialsUpdatedAt;
 	private final List<GrantedAuthority> authorities;
 
-	public AuthenticatedHouseholdUser(Long userId, Long householdId, String role, String name, String username, String password) {
+	public AuthenticatedHouseholdUser(Long userId, Long householdId, String role, String name, String username, String password, Instant credentialsUpdatedAt) {
 		this.userId = userId;
 		this.householdId = householdId;
 		this.role = role;
 		this.name = name;
 		this.username = username;
 		this.password = password;
+		this.credentialsUpdatedAt = credentialsUpdatedAt;
 		this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
 	}
 
-	public AuthenticatedHouseholdUser(Long userId, Long householdId, HouseholdMemberRole role, String name, String username, String password) {
-		this(userId, householdId, role.name(), name, username, password);
+	public AuthenticatedHouseholdUser(Long userId, Long householdId, HouseholdMemberRole role, String name, String username, String password, Instant credentialsUpdatedAt) {
+		this(userId, householdId, role.name(), name, username, password, credentialsUpdatedAt);
 	}
 
 	public static AuthenticatedHouseholdUser from(AppUser user, HouseholdMember member) {
@@ -42,7 +45,8 @@ public class AuthenticatedHouseholdUser implements UserDetails {
 			member.getRole().name(),
 			user.getName(),
 			user.getEmail(),
-			user.getPasswordHash()
+			user.getPasswordHash(),
+			user.getCredentialsUpdatedAt()
 		);
 	}
 
@@ -53,7 +57,8 @@ public class AuthenticatedHouseholdUser implements UserDetails {
 			"PLATFORM_ADMIN",
 			user.getName(),
 			user.getEmail(),
-			user.getPasswordHash()
+			user.getPasswordHash(),
+			user.getCredentialsUpdatedAt()
 		);
 	}
 
@@ -71,6 +76,10 @@ public class AuthenticatedHouseholdUser implements UserDetails {
 
 	public String getDisplayName() {
 		return name;
+	}
+
+	public Instant getCredentialsUpdatedAt() {
+		return credentialsUpdatedAt;
 	}
 
 	@Override

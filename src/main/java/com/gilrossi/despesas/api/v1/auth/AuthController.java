@@ -44,6 +44,11 @@ public class AuthController {
 		return ResponseEntity.noContent().build();
 	}
 
+	@PostMapping("/change-password")
+	public ApiResponse<ChangePasswordResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+		return new ApiResponse<>(mobileAuthService.changePassword(currentUserProvider.requireCurrentUser(), request));
+	}
+
 	@GetMapping("/me")
 	public ApiResponse<AuthResponse> me() {
 		var principal = currentUserProvider.requireCurrentUser();

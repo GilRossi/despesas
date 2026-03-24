@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -17,10 +18,16 @@ public class ApiBearerTokenAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final ApiTokenService apiTokenService;
+	private final HouseholdUserDetailsService householdUserDetailsService;
 	private final AuthenticationEntryPoint authenticationEntryPoint;
 
-	public ApiBearerTokenAuthenticationFilter(ApiTokenService apiTokenService, ApiAuthenticationEntryPoint authenticationEntryPoint) {
+	public ApiBearerTokenAuthenticationFilter(
+		ApiTokenService apiTokenService,
+		HouseholdUserDetailsService householdUserDetailsService,
+		ApiAuthenticationEntryPoint authenticationEntryPoint
+	) {
 		this.apiTokenService = apiTokenService;
+		this.householdUserDetailsService = householdUserDetailsService;
 		this.authenticationEntryPoint = authenticationEntryPoint;
 	}
 
@@ -34,7 +41,11 @@ public class ApiBearerTokenAuthenticationFilter extends OncePerRequestFilter {
 		String authorization = request.getHeader("Authorization");
 		if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {
 			try {
-				AuthenticatedHouseholdUser principal = apiTokenService.authenticateAccessToken(authorization.substring(BEARER_PREFIX.length()));
+				ApiTokenService.AuthenticatedApiToken token = apiTokenService.authenticateAccessToken(authorization.substring(BEARER_PREFIX.length()));
+				AuthenticatedHouseholdUser principal = householdUserDetailsService.loadUserById(token.principal().getUserId());
+				if (principal.getCredentialsUpdatedAt().isAfter(token.issuedAt())) {
+					throw new BadCredentialsException("Authentication failed");
+				}
 				var authentication = UsernamePasswordAuthenticationToken.authenticated(
 					principal,
 					null,

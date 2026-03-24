@@ -3,6 +3,8 @@ package com.gilrossi.despesas.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,7 +29,8 @@ class SecurityContextCurrentUserProviderTest {
 			HouseholdMemberRole.OWNER,
 			"Ana",
 			"ana@local.invalid",
-			"{noop}senha"
+			"{noop}senha",
+			Instant.now()
 		);
 		SecurityContextHolder.getContext().setAuthentication(
 			new UsernamePasswordAuthenticationToken(principal, principal.getPassword(), principal.getAuthorities())

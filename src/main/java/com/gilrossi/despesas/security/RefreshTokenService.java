@@ -123,6 +123,16 @@ public class RefreshTokenService {
 		securityAuditLogger.logoutSucceeded(principal, current.getTokenId(), current.getFamilyId(), revokedTokens);
 	}
 
+	@Transactional
+	public int revokeAllActiveForUser(Long userId, RefreshTokenRevocationReason reason) {
+		Instant now = clock.instant();
+		List<RefreshTokenRecord> activeTokens = refreshTokenRecordRepository.findByUserIdAndRevokedAtIsNull(userId);
+		for (RefreshTokenRecord token : activeTokens) {
+			token.revoke(reason, now);
+		}
+		return activeTokens.size();
+	}
+
 	private IssuedRefreshToken issue(Long userId, String familyId, Instant now) {
 		String tokenId = UUID.randomUUID().toString();
 		String secret = generateSecret();

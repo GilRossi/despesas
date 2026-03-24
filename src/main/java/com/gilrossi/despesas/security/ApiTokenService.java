@@ -42,16 +42,17 @@ public class ApiTokenService {
 		return issue(principal, TokenType.REFRESH, REFRESH_TOKEN_TTL);
 	}
 
-	public AuthenticatedHouseholdUser authenticateAccessToken(String token) {
+	public AuthenticatedApiToken authenticateAccessToken(String token) {
 		return parse(token, TokenType.ACCESS);
 	}
 
 	public AuthenticatedHouseholdUser authenticateRefreshToken(String token) {
-		return parse(token, TokenType.REFRESH);
+		return parse(token, TokenType.REFRESH).principal();
 	}
 
 	private ApiIssuedToken issue(AuthenticatedHouseholdUser principal, TokenType type, Duration ttl) {
-		Instant expiresAt = clock.instant().plus(ttl);
+		Instant issuedAt = clock.instant();
+		Instant expiresAt = issuedAt.plus(ttl);
 		ApiTokenPayload payload = new ApiTokenPayload(
 			type.name(),
 			principal.getUserId(),
@@ -59,12 +60,13 @@ public class ApiTokenService {
 			principal.getRole(),
 			principal.getDisplayName(),
 			principal.getUsername(),
+			issuedAt.toEpochMilli(),
 			expiresAt.getEpochSecond()
 		);
 		return new ApiIssuedToken(encode(payload), expiresAt);
 	}
 
-	private AuthenticatedHouseholdUser parse(String token, TokenType expectedType) {
+	private AuthenticatedApiToken parse(String token, TokenType expectedType) {
 		ApiTokenPayload payload = decode(token);
 		if (!expectedType.name().equals(payload.type())) {
 			throw new BadCredentialsException("Authentication failed");
@@ -72,14 +74,16 @@ public class ApiTokenService {
 		if (payload.exp() <= clock.instant().getEpochSecond()) {
 			throw new BadCredentialsException("Authentication failed");
 		}
-		return new AuthenticatedHouseholdUser(
+		AuthenticatedHouseholdUser principal = new AuthenticatedHouseholdUser(
 			payload.userId(),
 			payload.householdId(),
 			payload.role(),
 			payload.name(),
 			payload.email(),
-			""
+			"",
+			Instant.ofEpochMilli(payload.iat())
 		);
+		return new AuthenticatedApiToken(principal, Instant.ofEpochMilli(payload.iat()));
 	}
 
 	private String encode(ApiTokenPayload payload) {
@@ -121,5 +125,8 @@ public class ApiTokenService {
 	private enum TokenType {
 		ACCESS,
 		REFRESH
+	}
+
+	public record AuthenticatedApiToken(AuthenticatedHouseholdUser principal, Instant issuedAt) {
 	}
 }

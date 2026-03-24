@@ -10,6 +10,7 @@ record ApiTokenPayload(
 	String role,
 	String name,
 	String email,
+	long iat,
 	long exp
 ) {
 }

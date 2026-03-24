@@ -105,12 +105,34 @@ class AuthControllerTest {
 	@Test
 	void deve_retornar_usuario_corrente() throws Exception {
 		when(currentUserProvider.requireCurrentUser()).thenReturn(
-			new AuthenticatedHouseholdUser(1L, 10L, "OWNER", "Ana", "ana@local.invalid", "{noop}senha123")
+			new AuthenticatedHouseholdUser(1L, 10L, "OWNER", "Ana", "ana@local.invalid", "{noop}senha123", Instant.now())
 		);
 
 		mockMvc.perform(get("/api/v1/auth/me"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.email").value("ana@local.invalid"))
 			.andExpect(jsonPath("$.data.householdId").value(10));
+	}
+
+	@Test
+	void deve_trocar_senha_do_usuario_corrente() throws Exception {
+		when(currentUserProvider.requireCurrentUser()).thenReturn(
+			new AuthenticatedHouseholdUser(1L, 10L, "OWNER", "Ana", "ana@local.invalid", "{noop}senha123", Instant.now())
+		);
+		when(mobileAuthService.changePassword(any(), any()))
+			.thenReturn(new ChangePasswordResponse(1, true));
+
+		mockMvc.perform(post("/api/v1/auth/change-password")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "currentPassword":"senha123",
+					  "newPassword":"novaSenha123",
+					  "newPasswordConfirmation":"novaSenha123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.revokedRefreshTokens").value(1))
+			.andExpect(jsonPath("$.data.reauthenticationRequired").value(true));
 	}
 }

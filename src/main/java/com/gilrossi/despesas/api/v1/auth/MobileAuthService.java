@@ -10,6 +10,7 @@ import com.gilrossi.despesas.identity.AuthResponse;
 import com.gilrossi.despesas.security.ApiIssuedToken;
 import com.gilrossi.despesas.security.ApiTokenService;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
+import com.gilrossi.despesas.security.PasswordManagementService;
 import com.gilrossi.despesas.security.RefreshTokenRotationResult;
 import com.gilrossi.despesas.security.RefreshTokenService;
 import com.gilrossi.despesas.security.SecurityAuditLogger;
@@ -22,6 +23,7 @@ public class MobileAuthService {
 	private final AuthenticationManager authenticationManager;
 	private final ApiTokenService apiTokenService;
 	private final RefreshTokenService refreshTokenService;
+	private final PasswordManagementService passwordManagementService;
 	private final AbuseProtectionService abuseProtectionService;
 	private final SecurityAuditLogger securityAuditLogger;
 
@@ -29,12 +31,14 @@ public class MobileAuthService {
 		AuthenticationManager authenticationManager,
 		ApiTokenService apiTokenService,
 		RefreshTokenService refreshTokenService,
+		PasswordManagementService passwordManagementService,
 		AbuseProtectionService abuseProtectionService,
 		SecurityAuditLogger securityAuditLogger
 	) {
 		this.authenticationManager = authenticationManager;
 		this.apiTokenService = apiTokenService;
 		this.refreshTokenService = refreshTokenService;
+		this.passwordManagementService = passwordManagementService;
 		this.abuseProtectionService = abuseProtectionService;
 		this.securityAuditLogger = securityAuditLogger;
 	}
@@ -62,6 +66,10 @@ public class MobileAuthService {
 
 	public void logout(AuthenticatedHouseholdUser principal, LogoutRequest request) {
 		refreshTokenService.revokeFamilyForLogout(principal, request.refreshToken());
+	}
+
+	public ChangePasswordResponse changePassword(AuthenticatedHouseholdUser principal, ChangePasswordRequest request) {
+		return passwordManagementService.changeOwnPassword(principal, request);
 	}
 
 	private MobileAuthResponse responseFor(AuthenticatedHouseholdUser principal, ApiIssuedToken refreshToken) {
