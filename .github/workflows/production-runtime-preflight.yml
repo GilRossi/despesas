@@ -73,6 +73,7 @@ jobs:
                   "N8N_PUBLIC_HOST": os.environ["INPUT_N8N_PUBLIC_HOST"],
                   "API_BASE_URL": f'https://{os.environ["INPUT_APP_PUBLIC_HOST"]}',
                   "BACKEND_IMAGE": os.environ["INPUT_BACKEND_IMAGE"],
+                  "APP_SECURITY_CORS_ALLOWED_ORIGIN_PATTERNS": f'https://{os.environ["INPUT_APP_PUBLIC_HOST"]}',
                   "TRAEFIK_CERTRESOLVER": os.environ["INPUT_TRAEFIK_CERTRESOLVER"],
               },
               n8n: {

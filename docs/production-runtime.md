@@ -55,6 +55,7 @@ O proxy nao serve o build diretamente. Quem entrega `/` continua sendo o backend
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `APP_SECURITY_TOKEN_SECRET`
+- `APP_SECURITY_CORS_ALLOWED_ORIGIN_PATTERNS`
 - `APP_OPERATIONAL_EMAIL_INGESTION_KEY_ID`
 - `APP_OPERATIONAL_EMAIL_INGESTION_SECRET`
 - `APP_FRONTEND_WEB_DIST`
@@ -134,11 +135,28 @@ O runtime oficial nao depende de uma rede Docker publica compartilhada com o Tra
 
 - `GET https://<app>/actuator/health`
 - `GET https://<app>/`
+- `GET https://<app>/password-console.html`
 - `POST https://<app>/api/v1/auth/login`
 - `GET https://<app>/api/v1/expenses`
 - `POST https://<app>/api/v1/financial-assistant/query`
 - abrir `https://<n8n>/`
 - executar replay controlado do workflow principal do n8n
+
+## Password incident recovery
+
+O runtime oficial agora precisa preservar um caminho seguro de manutencao de credenciais sem SQL manual como rotina:
+
+- troca autenticada: `POST /api/v1/auth/change-password`
+- reset controlado: `POST /api/v1/admin/users/password-reset`
+- console same-origin servido pelo backend: `GET /password-console.html`
+
+Fluxo operacional esperado:
+
+1. usuario autenticado troca a propria senha pelo endpoint ou pelo console
+2. `PLATFORM_ADMIN` usa reset controlado apenas para usuarios padrao
+3. refresh tokens do usuario afetado sao revogados
+4. access tokens antigos deixam de valer por `credentials_updated_at`
+5. rotacao de `APP_SECURITY_TOKEN_SECRET` fica reservada para incidente de comprometimento
 
 ## Boundary oficial
 
