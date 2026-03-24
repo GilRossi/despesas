@@ -22,14 +22,18 @@ local_compose_prod_hash="$(sha256sum deploy/compose.prod.yml | awk '{print $1}')
 remote_compose_base_hash="$("${ssh_cmd[@]}" "sha256sum '$REMOTE_DEPLOY_DIR/compose.base.yml' | awk '{print \$1}'")"
 remote_compose_prod_hash="$("${ssh_cmd[@]}" "sha256sum '$REMOTE_DEPLOY_DIR/compose.prod.yml' | awk '{print \$1}'")"
 
+drift_detected="false"
+
+compose_base_status="match"
 if [ "$local_compose_base_hash" != "$remote_compose_base_hash" ]; then
-	echo "compose.base.yml drift detected between Git and VPS" >&2
-	exit 1
+	compose_base_status="drift"
+	drift_detected="true"
 fi
 
+compose_prod_status="match"
 if [ "$local_compose_prod_hash" != "$remote_compose_prod_hash" ]; then
-	echo "compose.prod.yml drift detected between Git and VPS" >&2
-	exit 1
+	compose_prod_status="drift"
+	drift_detected="true"
 fi
 
 containers_summary="$("${ssh_cmd[@]}" "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | sort")"
@@ -44,9 +48,14 @@ if [ "$SANITIZE_ZERO_BYTE_ENV_TMP" = "true" ] && [ "$tmp_file_size" = "0" ]; the
 	tmp_file_action="removed"
 fi
 
-printf 'compose.base.yml|%s|match\n' "$remote_compose_base_hash"
-printf 'compose.prod.yml|%s|match\n' "$remote_compose_prod_hash"
+printf 'compose.base.yml|%s|%s\n' "$remote_compose_base_hash" "$compose_base_status"
+printf 'compose.prod.yml|%s|%s\n' "$remote_compose_prod_hash" "$compose_prod_status"
 printf 'backend.env.tmp|%s|%s\n' "$tmp_file_size" "$tmp_file_action"
 printf '\n[containers]\n%s\n' "$containers_summary"
 printf '\n[compose-labels]\n%s\n' "$compose_labels_summary"
 printf '\n[env-files]\n%s\n' "$env_files_summary"
+
+if [ "$drift_detected" = "true" ]; then
+	echo "runtime-drift|detected" >&2
+	exit 1
+fi

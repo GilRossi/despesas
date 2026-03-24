@@ -41,6 +41,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           SANITIZE_ZERO_BYTE_ENV_TMP: ${{ github.event.inputs.sanitize_zero_byte_env_tmp }}
         run: |
+          set -o pipefail
           scripts/runtime/audit-production-runtime.sh | tee /tmp/production-runtime-audit.txt
           {
             echo '## Production runtime audit'
