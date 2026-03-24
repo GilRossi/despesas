@@ -11,6 +11,14 @@ on:
         options:
           - 'false'
           - 'true'
+      sanitize_incident_backups:
+        description: Remove backend.env.bak.* incident backups if present
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: read
@@ -40,6 +48,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           SANITIZE_ZERO_BYTE_ENV_TMP: ${{ github.event.inputs.sanitize_zero_byte_env_tmp }}
+          SANITIZE_INCIDENT_BACKUPS: ${{ github.event.inputs.sanitize_incident_backups }}
         run: |
           set -o pipefail
           scripts/runtime/audit-production-runtime.sh | tee /tmp/production-runtime-audit.txt
@@ -48,6 +57,7 @@ jobs:
             echo
             echo '- Source of truth: current checkout on GitHub Actions'
             echo "- sanitize_zero_byte_env_tmp=${SANITIZE_ZERO_BYTE_ENV_TMP}"
+            echo "- sanitize_incident_backups=${SANITIZE_INCIDENT_BACKUPS}"
             echo
             echo '```text'
             cat /tmp/production-runtime-audit.txt

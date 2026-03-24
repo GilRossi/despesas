@@ -7,6 +7,7 @@ SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/deploy_key}"
 REMOTE_DEPLOY_DIR="${REMOTE_DEPLOY_DIR:-/opt/despesas/deploy}"
 REMOTE_ENV_DIR="${REMOTE_ENV_DIR:-/root/envs/despesas/prod}"
 SANITIZE_ZERO_BYTE_ENV_TMP="${SANITIZE_ZERO_BYTE_ENV_TMP:-false}"
+SANITIZE_INCIDENT_BACKUPS="${SANITIZE_INCIDENT_BACKUPS:-false}"
 
 ssh_cmd=(
 	ssh
@@ -38,7 +39,6 @@ fi
 
 containers_summary="$("${ssh_cmd[@]}" "docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | sort")"
 compose_labels_summary="$("${ssh_cmd[@]}" "docker inspect despesas-backend-1 despesas-postgres-1 despesas-n8n-1 --format '{{.Name}}|{{index .Config.Labels \"com.docker.compose.project\"}}|{{index .Config.Labels \"com.docker.compose.project.working_dir\"}}|{{index .Config.Labels \"com.docker.compose.project.config_files\"}}' | sort")"
-env_files_summary="$("${ssh_cmd[@]}" "find '$REMOTE_ENV_DIR' -maxdepth 1 -type f -printf '%f|%s\n' | sort")"
 
 tmp_file_size="$("${ssh_cmd[@]}" "if [ -e '$REMOTE_ENV_DIR/backend.env.tmp' ]; then stat -c '%s' '$REMOTE_ENV_DIR/backend.env.tmp'; else echo ABSENT; fi")"
 tmp_file_action="kept"
@@ -48,9 +48,22 @@ if [ "$SANITIZE_ZERO_BYTE_ENV_TMP" = "true" ] && [ "$tmp_file_size" = "0" ]; the
 	tmp_file_action="removed"
 fi
 
+incident_backups_before="$("${ssh_cmd[@]}" "find '$REMOTE_ENV_DIR' -maxdepth 1 -type f -name 'backend.env.bak.*' -printf '%f\n' | sort | paste -sd, -")"
+incident_backups_action="kept"
+
+if [ "$SANITIZE_INCIDENT_BACKUPS" = "true" ] && [ -n "$incident_backups_before" ]; then
+	"${ssh_cmd[@]}" "find '$REMOTE_ENV_DIR' -maxdepth 1 -type f -name 'backend.env.bak.*' -delete"
+	incident_backups_action="removed"
+fi
+
+env_files_summary="$("${ssh_cmd[@]}" "find '$REMOTE_ENV_DIR' -maxdepth 1 -type f -printf '%f|%s\n' | sort")"
+incident_backups_after="$("${ssh_cmd[@]}" "find '$REMOTE_ENV_DIR' -maxdepth 1 -type f -name 'backend.env.bak.*' -printf '%f\n' | sort | paste -sd, -")"
+
 printf 'compose.base.yml|%s|%s\n' "$remote_compose_base_hash" "$compose_base_status"
 printf 'compose.prod.yml|%s|%s\n' "$remote_compose_prod_hash" "$compose_prod_status"
 printf 'backend.env.tmp|%s|%s\n' "$tmp_file_size" "$tmp_file_action"
+printf 'backend.env.bak.*|%s|%s\n' "${incident_backups_before:-ABSENT}" "$incident_backups_action"
+printf 'backend.env.bak.remaining|%s\n' "${incident_backups_after:-ABSENT}"
 printf '\n[containers]\n%s\n' "$containers_summary"
 printf '\n[compose-labels]\n%s\n' "$compose_labels_summary"
 printf '\n[env-files]\n%s\n' "$env_files_summary"
