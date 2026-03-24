@@ -1,0 +1,54 @@
+name: Production Runtime Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      sanitize_zero_byte_env_tmp:
+        description: Remove zero-byte /root/envs/despesas/prod/backend.env.tmp if present
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup deploy SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Verify production surface
+        run: scripts/runtime/verify-production-surface.sh
+
+      - name: Audit runtime reconciliation
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          SANITIZE_ZERO_BYTE_ENV_TMP: ${{ github.event.inputs.sanitize_zero_byte_env_tmp }}
+        run: |
+          scripts/runtime/audit-production-runtime.sh | tee /tmp/production-runtime-audit.txt
+          {
+            echo '## Production runtime audit'
+            echo
+            echo '- Source of truth: current checkout on GitHub Actions'
+            echo "- sanitize_zero_byte_env_tmp=${SANITIZE_ZERO_BYTE_ENV_TMP}"
+            echo
+            echo '```text'
+            cat /tmp/production-runtime-audit.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

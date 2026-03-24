@@ -85,8 +85,4 @@ jobs:
       - name: Smoke check
         run: |
           sleep 20
-          STATUS=$(curl -sk -o /dev/null -w '%{http_code}' \
-            https://app.rossicompany.com.br/actuator/health)
-          echo "Health: $STATUS"
-          [ "$STATUS" = "200" ] || (echo "SMOKE FAILED" && exit 1)
-          echo "Deploy OK"
+          scripts/runtime/verify-production-surface.sh

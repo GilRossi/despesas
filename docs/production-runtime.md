@@ -157,6 +157,33 @@ Fluxo operacional esperado:
 4. access tokens antigos deixam de valer por `credentials_updated_at`
 5. rotacao de `APP_SECURITY_TOKEN_SECRET` fica reservada para incidente de comprometimento
 
+## Governanca operacional de deploy
+
+O fluxo normal de operacao deve voltar a ser exclusivamente governado por Git e GitHub Actions:
+
+1. mudança versionada em branch
+2. PR revisado e merge em `main`
+3. deploy automatico por GitHub Actions
+4. smoke governado da superficie publica
+5. auditoria de runtime por workflow, sem shell manual como rotina
+
+O shell direto na VPS fica reservado para emergencia humana justificada. IA e automacao assistida nao devem usar acesso interativo ao host como caminho padrao de deploy, auditoria ou manutencao.
+
+### Workflows governados
+
+- `Backend CD`: publica a imagem `despesas-backend:main`, faz `docker compose up -d --no-deps backend` e executa `scripts/runtime/verify-production-surface.sh`
+- `Production Runtime Audit`: executa o mesmo smoke publico e audita a reconciliacao entre os arquivos versionados e o runtime materializado na VPS
+
+### Reconciliacao auditada
+
+O workflow `Production Runtime Audit` deve confirmar, sem expor segredos:
+
+- containers ativos, imagens e status
+- labels Compose do backend, postgres e n8n
+- hashes de `compose.base.yml` e `compose.prod.yml` iguais entre Git e VPS
+- nomes e tamanhos dos arquivos reais em `~/envs/despesas/prod`
+- ausencia, preservacao ou remocao governada de `backend.env.tmp`
+
 ## Boundary oficial
 
 - `main` do backend = source of truth do runtime/deploy
@@ -205,6 +232,13 @@ Nunca pode ir para nenhum repositório:
    - Flutter Web: `build/web` sincronizado para `/srv/despesas/frontend-web/current/`
 4. o Traefik do host continua roteando por labels Docker para o backend e por mount do build web servido pelo backend
 5. o n8n permanece fora da esteira de deploy automatizado desta fase
+
+O smoke governado minimo agora precisa confirmar:
+
+- `GET https://<app>/actuator/health` => `200`
+- `GET https://<app>/` => `200`
+- `GET https://<app>/password-console.html` => `404`
+- `GET https://<n8n>/` => `200`
 
 ## Risco operacional atual
 

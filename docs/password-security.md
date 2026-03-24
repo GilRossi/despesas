@@ -70,3 +70,16 @@ Allowed operational order:
 2. `PLATFORM_ADMIN` uses controlled reset when the user is locked out
 3. database intervention is reserved for incident containment only
 4. if a credential or bearer compromise is suspected, revoke refresh tokens and rotate `APP_SECURITY_TOKEN_SECRET`
+
+## Incident artifacts and local hygiene
+
+Any local recovery artifact created during incident handling must stay outside Git and must not become part of the normal operational flow.
+
+Required hygiene:
+
+- store temporary recovery material outside every repository
+- restrict directory permissions to `700`
+- restrict file permissions to `600`
+- delete the artifact after the human owner confirms the final password rotation
+
+Production runtime inspection after an incident must prefer the governed GitHub workflow audit over direct interactive shell access to the VPS.
