@@ -98,7 +98,7 @@ jobs:
         run: scripts/runtime/validate-production-compose.sh
 
       - name: Upload rendered compose
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: production-compose-rendered
           path: /tmp/despesas-production-compose.rendered.yml
