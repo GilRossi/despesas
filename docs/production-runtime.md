@@ -183,6 +183,7 @@ O workflow `Production Runtime Audit` deve confirmar, sem expor segredos:
 - hashes de `compose.base.yml` e `compose.prod.yml` iguais entre Git e VPS
 - nomes e tamanhos dos arquivos reais em `~/envs/despesas/prod`
 - ausencia, preservacao ou remocao governada de `backend.env.tmp`
+- ausencia, preservacao ou remocao governada de `backend.env.bak.*`
 
 ## Boundary oficial
 
