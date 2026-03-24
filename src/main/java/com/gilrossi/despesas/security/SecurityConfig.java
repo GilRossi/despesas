@@ -119,8 +119,8 @@ public class SecurityConfig {
 	CorsConfigurationSource corsConfigurationSource(ApiSecurityProperties properties) {
 		CorsConfiguration configuration = new CorsConfiguration();
 		List<String> allowedOriginPatterns = properties.corsAllowedOriginPatterns();
-		if (allowedOriginPatterns == null || allowedOriginPatterns.isEmpty()) {
-			allowedOriginPatterns = List.of("http://localhost:*", "http://127.0.0.1:*");
+		if (allowedOriginPatterns == null) {
+			allowedOriginPatterns = List.of();
 		}
 		configuration.setAllowedOriginPatterns(allowedOriginPatterns);
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -24,7 +24,10 @@ import com.gilrossi.despesas.identity.RegistrationService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "spring.web.resources.static-locations=classpath:/flutter-web/,classpath:/static/")
+@TestPropertySource(properties = {
+	"spring.web.resources.static-locations=classpath:/flutter-web/,classpath:/static/",
+	"app.security.cors-allowed-origin-patterns=http://localhost:*,http://127.0.0.1:*"
+})
 class SecurityIntegrationTest {
 
 	@Autowired

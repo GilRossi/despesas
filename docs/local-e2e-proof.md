@@ -27,6 +27,7 @@ O smoke:
 
 1. garante `postgres` local + criação do banco esperado mesmo com volume antigo
 2. sobe o backend com chave operacional temporária apenas no processo local, sem editar env real
+   - usando o profile `local-proof` para habilitar apenas o CORS necessário ao Flutter Web local
 3. sobe o n8n local com a mesma chave operacional temporária
 4. garante/importa/publica os workflows canônicos de replay e processor
 5. roda o E2E web real no Flutter com screenshots em viewport reduzido
@@ -49,4 +50,5 @@ O smoke:
 
 - o script não toca em produção nem em env real
 - a chave operacional local usada para a prova é efêmera no processo quando os envs oficiais não a trazem
+- se já existir um backend externo rodando em `localhost:8080` sem o profile local da prova, o smoke falha de forma explícita em vez de mascarar o problema
 - o backend continua sendo a fonte de verdade para tenancy, papéis, assistente e ingestão operacional

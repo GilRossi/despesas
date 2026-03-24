@@ -22,6 +22,13 @@ require_command curl
 require_command jq
 require_command python3
 
+fail_with_body_args=()
+if curl --help all 2>/dev/null | grep -q -- '--fail-with-body'; then
+  fail_with_body_args+=(--fail-with-body)
+else
+  fail_with_body_args+=(--fail)
+fi
+
 wait_for_http() {
   local url="$1"
   local timeout="${2:-60}"
@@ -43,7 +50,7 @@ api_post() {
   local url="$1"
   local token="$2"
   local body="$3"
-  curl -sS -X POST "${url}" \
+  curl "${fail_with_body_args[@]}" -sS -X POST "${url}" \
     -H 'Content-Type: application/json' \
     -H "Authorization: Bearer ${token}" \
     -d "${body}"
@@ -52,7 +59,7 @@ api_post() {
 api_get() {
   local url="$1"
   local token="$2"
-  curl -sS "${url}" -H "Authorization: Bearer ${token}"
+  curl "${fail_with_body_args[@]}" -sS "${url}" -H "Authorization: Bearer ${token}"
 }
 
 login_and_capture() {
@@ -60,27 +67,43 @@ login_and_capture() {
   local password="$2"
   local response
   response="$(
-    curl -sS -X POST http://localhost:8080/api/v1/auth/login \
+    curl "${fail_with_body_args[@]}" -sS -X POST http://localhost:8080/api/v1/auth/login \
       -H 'Content-Type: application/json' \
       -d "$(jq -nc --arg email "${email}" --arg password "${password}" '{email:$email,password:$password}')"
   )"
   printf '%s' "${response}"
 }
 
+preflight_login_status() {
+  curl -s -o /tmp/proof-login-preflight.out -w '%{http_code}' \
+    -X OPTIONS http://localhost:8080/api/v1/auth/login \
+    -H 'Origin: http://localhost:54721' \
+    -H 'Access-Control-Request-Method: POST' \
+    -H 'Access-Control-Request-Headers: content-type'
+}
+
 ensure_backend() {
   "${script_dir}/ensure_local_postgres_db.sh" >/dev/null
   if curl -s -o /dev/null http://localhost:8080/api/v1/auth/me; then
-    return 0
+    if [[ "$(preflight_login_status)" == "200" ]]; then
+      return 0
+    fi
+    echo "Backend already running on localhost:8080 without local-proof CORS support. Stop it and rerun the smoke." >&2
+    return 1
   fi
 
   (
     cd "${repo_root}"
-    nohup bash -lc "source '${repo_root}/scripts/runtime/load-governed-env.sh' local >/dev/null && export APP_OPERATIONAL_EMAIL_INGESTION_KEY_ID='${APP_OPERATIONAL_EMAIL_INGESTION_KEY_ID:-macro3-local-key}' APP_OPERATIONAL_EMAIL_INGESTION_SECRET='${APP_OPERATIONAL_EMAIL_INGESTION_SECRET:-macro3-local-secret}' && ./mvnw spring-boot:run" \
+    nohup "${script_dir}/run_local_backend.sh" \
       >"${backend_log}" 2>&1 &
     echo $! > "${artifacts_dir}/backend.pid"
   )
 
   wait_for_http "http://localhost:8080/api/v1/auth/me" 90
+  if [[ "$(preflight_login_status)" != "200" ]]; then
+    echo "Local-proof backend started without answering the required CORS preflight." >&2
+    return 1
+  fi
 }
 
 ensure_n8n() {
@@ -183,11 +206,24 @@ owner_b_create="$(
 
 owner_b_login="$(login_and_capture "${owner_b_email}" "${owner_password}")"
 owner_b_token="$(printf '%s' "${owner_b_login}" | jq -r '.data.accessToken')"
+owner_b_catalog_options="$(api_get "http://localhost:8080/api/v1/catalog/options" "${owner_b_token}")"
+owner_b_category_id="$(printf '%s' "${owner_b_catalog_options}" | jq -r '.data[0].id')"
+owner_b_subcategory_id="$(printf '%s' "${owner_b_catalog_options}" | jq -r '.data[0].subcategories[0].id')"
+owner_b_expense_create="$(
 api_post \
   "http://localhost:8080/api/v1/expenses" \
   "${owner_b_token}" \
-  "$(jq -nc --arg description "${proof_expense_b}" --argjson categoryId "${category_id}" --argjson subcategoryId "${subcategory_id}" '{description:$description,amount:987.65,dueDate:"2026-03-25",context:"GERAL",categoryId:$categoryId,subcategoryId:$subcategoryId,notes:"Cross-household proof"}')" \
-  >/tmp/proof-owner-b-expense.json
+  "$(jq -nc --arg description "${proof_expense_b}" --argjson categoryId "${owner_b_category_id}" --argjson subcategoryId "${owner_b_subcategory_id}" '{description:$description,amount:987.65,dueDate:"2026-03-25",context:"GERAL",categoryId:$categoryId,subcategoryId:$subcategoryId,notes:"Cross-household proof"}')"
+)"
+owner_b_expense_id="$(printf '%s' "${owner_b_expense_create}" | jq -er '.data.id')"
+owner_b_expense_detail="$(
+  api_get "http://localhost:8080/api/v1/expenses/${owner_b_expense_id}" "${owner_b_token}"
+)"
+owner_a_cross_household_status="$(
+  curl -s -o /tmp/proof-owner-a-cross-household.json -w '%{http_code}' \
+    "http://localhost:8080/api/v1/expenses/${owner_b_expense_id}" \
+    -H "Authorization: Bearer ${owner_token}"
+)"
 
 assistant_response="$(
   api_post \
@@ -201,13 +237,13 @@ owner_expenses="$(api_get "http://localhost:8080/api/v1/expenses?page=0&size=20"
 owner_b_expenses="$(api_get "http://localhost:8080/api/v1/expenses?page=0&size=20" "${owner_b_token}")"
 
 manual_replay_response="$(
-  curl -sS -X POST http://localhost:5678/webhook/email-ingestion-replay-v1 \
+  curl "${fail_with_body_args[@]}" -sS -X POST http://localhost:5678/webhook/email-ingestion-replay-v1 \
     -H 'Content-Type: application/json' \
     -d "$(jq -nc --arg sourceAccount "${source_account}" --arg externalMessageId "manual-${proof_run_id}" --arg backendBaseUrl "http://host.docker.internal:8080" '{scenario:"manualPurchase",sourceAccount:$sourceAccount,externalMessageId:$externalMessageId,backendBaseUrl:$backendBaseUrl}')"
 )"
 
 recurring_replay_response="$(
-  curl -sS -X POST http://localhost:5678/webhook/email-ingestion-replay-v1 \
+  curl "${fail_with_body_args[@]}" -sS -X POST http://localhost:5678/webhook/email-ingestion-replay-v1 \
     -H 'Content-Type: application/json' \
     -d "$(jq -nc --arg sourceAccount "${source_account}" --arg externalMessageId "recurring-${proof_run_id}" --arg backendBaseUrl "http://host.docker.internal:8080" '{scenario:"recurringBill",sourceAccount:$sourceAccount,externalMessageId:$externalMessageId,backendBaseUrl:$backendBaseUrl}')"
 )"
@@ -272,6 +308,9 @@ owner_b_has_proof="$(
 owner_a_has_b_expense="$(
   printf '%s' "${owner_expenses}" | jq -r --arg description "${proof_expense_b}" '[((.data.items // .items // [])[]?) | select(.description == $description)] | length'
 )"
+owner_b_detail_description_matches="$(
+  printf '%s' "${owner_b_expense_detail}" | jq -r --arg description "${proof_expense_b}" '.data.description == $description'
+)"
 
 write_summary "$(
   jq -n \
@@ -283,10 +322,14 @@ write_summary "$(
     --arg sourceAccount "${source_account}" \
     --arg ownerAdminAttemptStatus "${owner_admin_attempt_status}" \
     --arg memberCreateAttemptStatus "${member_create_attempt_status}" \
+    --arg ownerACrossHouseholdStatus "${owner_a_cross_household_status}" \
     --arg assistantMentionsB "${assistant_mentions_b}" \
     --arg ownerAHasBExpense "${owner_a_has_b_expense}" \
     --arg ownerBHasProof "${owner_b_has_proof}" \
+    --arg ownerBDetailDescriptionMatches "${owner_b_detail_description_matches}" \
     --argjson adminProvisioning "${admin_household_create}" \
+    --argjson ownerBExpenseCreate "${owner_b_expense_create}" \
+    --argjson ownerBExpenseDetail "${owner_b_expense_detail}" \
     --argjson reports "${reports_response}" \
     --argjson assistant "${assistant_response}" \
     --argjson recurringReplay "${recurring_replay_response}" \
@@ -309,9 +352,14 @@ write_summary "$(
         memberCreateAttemptStatus: ($memberCreateAttemptStatus | tonumber)
       },
       assistantIsolation: {
+        ownerBExpenseId: ($ownerBExpenseCreate.data.id),
+        ownerBExpenseDetailStatus: 200,
+        ownerBExpenseDetailDescriptionMatches: ($ownerBDetailDescriptionMatches == "true"),
+        ownerACrossHouseholdDetailStatus: ($ownerACrossHouseholdStatus | tonumber),
         mentionsHouseholdBExpense: ($assistantMentionsB == "true"),
         ownerAHasHouseholdBExpense: ($ownerAHasBExpense | tonumber),
         ownerBHasOwnProofExpense: ($ownerBHasProof | tonumber),
+        ownerBExpenseDetail: $ownerBExpenseDetail,
         response: $assistant
       },
       dashboard: $reports,
