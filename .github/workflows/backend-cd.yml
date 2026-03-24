@@ -61,6 +61,15 @@ jobs:
               "gunzip | docker load && \
                docker tag 'despesas-backend:${{ github.sha }}' despesas-backend:main"
 
+      - name: Sync deploy contract to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          rsync -az \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            deploy/ \
+            "root@$VPS_HOST:/opt/despesas/deploy/"
+
       - name: Deploy on VPS
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}

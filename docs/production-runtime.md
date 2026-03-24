@@ -171,7 +171,7 @@ O shell direto na VPS fica reservado para emergencia humana justificada. IA e au
 
 ### Workflows governados
 
-- `Backend CD`: publica a imagem `despesas-backend:main`, faz `docker compose up -d --no-deps backend` e executa `scripts/runtime/verify-production-surface.sh`
+- `Backend CD`: publica a imagem `despesas-backend:main`, sincroniza o diretório versionado `deploy/` para `/opt/despesas/deploy`, faz `docker compose up -d --no-deps backend` e executa `scripts/runtime/verify-production-surface.sh`
 - `Production Runtime Audit`: executa o mesmo smoke publico e audita a reconciliacao entre os arquivos versionados e o runtime materializado na VPS
 
 ### Reconciliacao auditada
