@@ -266,12 +266,7 @@ Fluxo seguro de senha:
 - `PLATFORM_ADMIN` nao pode usar o reset administrativo para outro `PLATFORM_ADMIN`
 - troca/reset revoga refresh tokens ativos do usuario afetado
 - access tokens emitidos antes da mudanca ficam invalidos por comparacao com `credentials_updated_at`
-
-Console minimo entregue por este repositorio:
-
-- `GET /password-console.html`
-
-O repo Flutter nao esta presente aqui, entao esse console same-origin e o caminho versionado disponivel neste backend para incidentes e manutencao controlada.
+- a superficie oficial de senha fica no Flutter autenticado; este backend nao deve expor console HTML paralelo para esse fluxo
 
 Referencia operacional:
 

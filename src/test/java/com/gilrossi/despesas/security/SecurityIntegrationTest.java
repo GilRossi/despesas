@@ -55,11 +55,9 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
-	void deve_servir_console_de_senha_sem_autenticacao() throws Exception {
+	void deve_nao_expor_console_temporario_de_senha() throws Exception {
 		mockMvc.perform(get("/password-console.html"))
-			.andExpect(status().isOk())
-			.andExpect(content().contentTypeCompatibleWith("text/html"))
-			.andExpect(content().string(containsString("Console seguro de senha")));
+			.andExpect(status().isNotFound());
 	}
 
 	@Test
