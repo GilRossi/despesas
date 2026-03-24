@@ -90,7 +90,36 @@ class LegacyExpenseBackfillReadIT {
 
 	@Test
 	void deve_expor_despesas_legadas_migradas_na_api() throws Exception {
-		String accessToken = loginApi("system@local.invalid", "password");
+		mockMvc.perform(post("/api/v1/auth/login")
+				.contentType("application/json")
+				.content("""
+					{
+					  "email":"system@local.invalid",
+					  "password":"password"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+		jdbcTemplate.update(
+			"insert into users (name, email, password_hash) values (?, ?, ?)",
+			"Legacy Reader",
+			"legacy-reader@local.invalid",
+			"{noop}senha123"
+		);
+		Long userId = jdbcTemplate.queryForObject(
+			"select id from users where lower(email) = lower(?) and deleted_at is null",
+			Long.class,
+			"legacy-reader@local.invalid"
+		);
+		jdbcTemplate.update(
+			"insert into household_members (household_id, user_id, role) values (?, ?, ?)",
+			1L,
+			userId,
+			"OWNER"
+		);
+
+		String accessToken = loginApi("legacy-reader@local.invalid", "senha123");
 
 		mockMvc.perform(get("/api/v1/expenses")
 				.header("Authorization", "Bearer " + accessToken))

@@ -69,6 +69,7 @@ Por padrão, o container sobe como `despesas-postgres` em `localhost:5432`.
 O projeto usa estas variáveis no runtime:
 
 - `APP_SECURITY_TOKEN_SECRET`
+- `APP_SECURITY_CORS_ALLOWED_ORIGIN_PATTERNS`
 - `APP_BOOTSTRAP_PLATFORM_ADMIN_NAME`
 - `APP_BOOTSTRAP_PLATFORM_ADMIN_EMAIL`
 - `APP_BOOTSTRAP_PLATFORM_ADMIN_PASSWORD`
@@ -239,6 +240,10 @@ O sistema trabalha com um modo oficial de autenticação:
   - `POST /api/v1/auth/refresh`
 - endpoint autenticado:
   - `GET /api/v1/auth/me`
+- endpoint autenticado de troca de senha:
+  - `POST /api/v1/auth/change-password`
+- endpoint administrativo de reset controlado:
+  - `POST /api/v1/admin/users/password-reset`
 - não existe cadastro público
 - o primeiro `PLATFORM_ADMIN` nasce por bootstrap controlado de ambiente
 - `POST /api/v1/admin/households` é restrito a `PLATFORM_ADMIN`
@@ -254,9 +259,23 @@ Payload de auth mobile/API:
 - `refreshTokenExpiresAt`
 - `user`
 
-Limitação atual relevante:
+Fluxo seguro de senha:
 
-- ainda não existe revogação/rotação persistida de tokens
+- usuarios autenticados podem trocar a propria senha por `POST /api/v1/auth/change-password`
+- `PLATFORM_ADMIN` pode resetar senha de usuario especifico por `POST /api/v1/admin/users/password-reset`
+- `PLATFORM_ADMIN` nao pode usar o reset administrativo para outro `PLATFORM_ADMIN`
+- troca/reset revoga refresh tokens ativos do usuario afetado
+- access tokens emitidos antes da mudanca ficam invalidos por comparacao com `credentials_updated_at`
+
+Console minimo entregue por este repositorio:
+
+- `GET /password-console.html`
+
+O repo Flutter nao esta presente aqui, entao esse console same-origin e o caminho versionado disponivel neste backend para incidentes e manutencao controlada.
+
+Referencia operacional:
+
+- [password-security.md](/home/gil/workspace/claude/despesas/docs/password-security.md)
 
 ## Assistente financeiro inteligente
 

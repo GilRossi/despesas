@@ -30,6 +30,9 @@ public class AppUser {
 	@Column(name = "password_hash", nullable = false, length = 255)
 	private String passwordHash;
 
+	@Column(name = "credentials_updated_at", nullable = false)
+	private Instant credentialsUpdatedAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "platform_role", nullable = false, length = 32)
 	private PlatformUserRole platformRole = PlatformUserRole.STANDARD_USER;
@@ -89,6 +92,15 @@ public class AppUser {
 		this.passwordHash = passwordHash;
 	}
 
+	public Instant getCredentialsUpdatedAt() {
+		return credentialsUpdatedAt;
+	}
+
+	public void changePasswordHash(String passwordHash, Instant changedAt) {
+		this.passwordHash = passwordHash;
+		this.credentialsUpdatedAt = changedAt;
+	}
+
 	public Instant getCreatedAt() {
 		return createdAt;
 	}
@@ -118,6 +130,9 @@ public class AppUser {
 		Instant now = Instant.now();
 		if (this.createdAt == null) {
 			this.createdAt = now;
+		}
+		if (this.credentialsUpdatedAt == null) {
+			this.credentialsUpdatedAt = now;
 		}
 		this.updatedAt = now;
 	}

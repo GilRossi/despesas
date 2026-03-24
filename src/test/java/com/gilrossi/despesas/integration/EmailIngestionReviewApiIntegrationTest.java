@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static com.gilrossi.despesas.support.OperationalRequestSignatureTestSupport.signedOperationalPost;
 
+import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -274,7 +275,8 @@ class EmailIngestionReviewApiIntegrationTest {
 			HouseholdMemberRole.OWNER,
 			registration.name(),
 			registration.email(),
-			"senha123"
+			"senha123",
+			Instant.now()
 		);
 	}
 
@@ -285,7 +287,8 @@ class EmailIngestionReviewApiIntegrationTest {
 			HouseholdMemberRole.MEMBER,
 			registration.name(),
 			registration.email(),
-			"senha123"
+			"senha123",
+			Instant.now()
 		);
 	}
 }

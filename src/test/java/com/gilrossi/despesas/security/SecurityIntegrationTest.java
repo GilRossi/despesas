@@ -55,6 +55,14 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_servir_console_de_senha_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/password-console.html"))
+			.andExpect(status().isOk())
+			.andExpect(content().contentTypeCompatibleWith("text/html"))
+			.andExpect(content().string(containsString("Console seguro de senha")));
+	}
+
+	@Test
 	void deve_servir_ativo_do_flutter_sem_autenticacao() throws Exception {
 		mockMvc.perform(get("/flutter_bootstrap.js"))
 			.andExpect(status().isOk())
@@ -210,6 +218,20 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 			.andExpect(jsonPath("$.fieldErrors").isArray())
 			.andExpect(jsonPath("$.fieldErrors").isEmpty());
+	}
+
+	@Test
+	void deve_rejeitar_usuario_legado_de_sistema() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/login")
+				.contentType("application/json")
+				.content("""
+					{
+					  "email":"system@local.invalid",
+					  "password":"password"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 	}
 
 	@Test

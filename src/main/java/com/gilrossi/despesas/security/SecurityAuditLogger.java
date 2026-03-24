@@ -1,5 +1,7 @@
 package com.gilrossi.despesas.security;
 
+import com.gilrossi.despesas.identity.AppUser;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -108,6 +110,84 @@ public class SecurityAuditLogger {
 			.primaryReference(normalize(tokenId))
 			.secondaryReference(normalize(familyId))
 			.safeContext("revokedTokens", revokedTokens)
+			.build());
+	}
+
+	public void passwordChangeSucceeded(AuthenticatedHouseholdUser principal, int revokedRefreshTokens) {
+		LOGGER.info(
+			"event=auth_password_change_success userId={} role={} householdId={} email={} revokedRefreshTokens={}",
+			principal.getUserId(),
+			principal.getRole(),
+			principal.getHouseholdId(),
+			maskEmail(principal.getUsername()),
+			revokedRefreshTokens
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_password_change_success", PersistedAuditEventStatus.SUCCESS)
+			.userId(principal.getUserId())
+			.householdId(principal.getHouseholdId())
+			.actorRole(principal.getRole())
+			.primaryReference(maskEmail(principal.getUsername()))
+			.safeContext("revokedRefreshTokens", revokedRefreshTokens)
+			.build());
+	}
+
+	public void passwordChangeRejected(AuthenticatedHouseholdUser principal, String reason) {
+		LOGGER.warn(
+			"event=auth_password_change_rejected userId={} role={} householdId={} email={} reason={}",
+			principal.getUserId(),
+			principal.getRole(),
+			principal.getHouseholdId(),
+			maskEmail(principal.getUsername()),
+			normalize(reason)
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_password_change_rejected", PersistedAuditEventStatus.REJECTED)
+			.userId(principal.getUserId())
+			.householdId(principal.getHouseholdId())
+			.actorRole(principal.getRole())
+			.primaryReference(maskEmail(principal.getUsername()))
+			.detailCode(normalize(reason))
+			.build());
+	}
+
+	public void passwordResetSucceeded(AuthenticatedHouseholdUser actor, AppUser targetUser, int revokedRefreshTokens) {
+		LOGGER.info(
+			"event=auth_password_reset_success actorUserId={} actorRole={} actorHouseholdId={} targetEmail={} revokedRefreshTokens={}",
+			actor.getUserId(),
+			actor.getRole(),
+			actor.getHouseholdId(),
+			maskEmail(targetUser.getEmail()),
+			revokedRefreshTokens
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_password_reset_success", PersistedAuditEventStatus.SUCCESS)
+			.userId(actor.getUserId())
+			.householdId(actor.getHouseholdId())
+			.actorRole(actor.getRole())
+			.primaryReference(maskEmail(targetUser.getEmail()))
+			.secondaryReference(maskEmail(actor.getUsername()))
+			.safeContext("revokedRefreshTokens", revokedRefreshTokens)
+			.build());
+	}
+
+	public void passwordResetRejected(AuthenticatedHouseholdUser actor, String targetEmail, String reason) {
+		LOGGER.warn(
+			"event=auth_password_reset_rejected actorUserId={} actorRole={} actorHouseholdId={} targetEmail={} reason={}",
+			actor.getUserId(),
+			actor.getRole(),
+			actor.getHouseholdId(),
+			maskEmail(targetEmail),
+			normalize(reason)
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_password_reset_rejected", PersistedAuditEventStatus.REJECTED)
+			.userId(actor.getUserId())
+			.householdId(actor.getHouseholdId())
+			.actorRole(actor.getRole())
+			.primaryReference(maskEmail(targetEmail))
+			.secondaryReference(maskEmail(actor.getUsername()))
+			.detailCode(normalize(reason))
 			.build());
 	}
 

@@ -57,9 +57,10 @@ public class SecurityConfig {
 	@Bean
 	ApiBearerTokenAuthenticationFilter apiBearerTokenAuthenticationFilter(
 		ApiTokenService apiTokenService,
+		HouseholdUserDetailsService householdUserDetailsService,
 		ApiAuthenticationEntryPoint authenticationEntryPoint
 	) {
-		return new ApiBearerTokenAuthenticationFilter(apiTokenService, authenticationEntryPoint);
+		return new ApiBearerTokenAuthenticationFilter(apiTokenService, householdUserDetailsService, authenticationEntryPoint);
 	}
 
 	@Bean

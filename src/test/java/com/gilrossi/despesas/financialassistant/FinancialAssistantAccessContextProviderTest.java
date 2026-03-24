@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -27,7 +29,8 @@ class FinancialAssistantAccessContextProviderTest {
 			HouseholdMemberRole.OWNER,
 			"Ana",
 			"ana@local.invalid",
-			"{noop}senha"
+			"{noop}senha",
+			Instant.now()
 		));
 
 		FinancialAssistantAccessContextProvider provider = new FinancialAssistantAccessContextProvider(currentUserProvider);
@@ -46,7 +49,8 @@ class FinancialAssistantAccessContextProviderTest {
 			"PLATFORM_ADMIN",
 			"Admin",
 			"admin@local.invalid",
-			"{noop}senha"
+			"{noop}senha",
+			Instant.now()
 		));
 
 		FinancialAssistantAccessContextProvider provider = new FinancialAssistantAccessContextProvider(currentUserProvider);
