@@ -234,7 +234,6 @@ assistant_response="$(
 
 reports_response="$(api_get "http://localhost:8080/api/v1/dashboard/summary" "${owner_token}")"
 owner_expenses="$(api_get "http://localhost:8080/api/v1/expenses?page=0&size=20" "${owner_token}")"
-owner_b_expenses="$(api_get "http://localhost:8080/api/v1/expenses?page=0&size=20" "${owner_b_token}")"
 
 manual_replay_response="$(
   curl "${fail_with_body_args[@]}" -sS -X POST http://localhost:5678/webhook/email-ingestion-replay-v1 \
@@ -302,14 +301,14 @@ if printf '%s' "${assistant_response}" | grep -q "${proof_expense_b}"; then
   assistant_mentions_b="true"
 fi
 
-owner_b_has_proof="$(
-  printf '%s' "${owner_b_expenses}" | jq -r --arg description "${proof_expense_b}" '[((.data.items // .items // [])[]?) | select(.description == $description)] | length'
-)"
 owner_a_has_b_expense="$(
   printf '%s' "${owner_expenses}" | jq -r --arg description "${proof_expense_b}" '[((.data.items // .items // [])[]?) | select(.description == $description)] | length'
 )"
 owner_b_detail_description_matches="$(
   printf '%s' "${owner_b_expense_detail}" | jq -r --arg description "${proof_expense_b}" '.data.description == $description'
+)"
+owner_b_has_proof="$(
+  printf '%s' "${owner_b_expense_detail}" | jq -r --arg description "${proof_expense_b}" 'if .data.description == $description then 1 else 0 end'
 )"
 
 write_summary "$(
