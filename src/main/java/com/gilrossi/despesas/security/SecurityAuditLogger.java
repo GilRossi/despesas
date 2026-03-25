@@ -191,6 +191,19 @@ public class SecurityAuditLogger {
 			.build());
 	}
 
+	public void passwordResetTokenIssued(String targetEmail, java.time.Instant expiresAt) {
+		LOGGER.info(
+			"event=auth_password_reset_token_issued targetEmail={} expiresAt={}",
+			maskEmail(targetEmail),
+			expiresAt
+		);
+		auditEventRecorder.recordSafely(PersistedAuditEventCommand
+			.event(PersistedAuditEventCategory.AUTH, "auth_password_reset_token_issued", PersistedAuditEventStatus.SUCCESS)
+			.primaryReference(maskEmail(targetEmail))
+			.safeContext("expiresAt", expiresAt.toString())
+			.build());
+	}
+
 	public void loginRateLimited(String username, RateLimitExceededException exception) {
 		LOGGER.warn(
 			"event=auth_login_rate_limited email={} retryAfterSeconds={} maxRequests={} windowSeconds={}",
