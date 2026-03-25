@@ -44,6 +44,17 @@ public class AuthController {
 		return ResponseEntity.noContent().build();
 	}
 
+	@PostMapping("/forgot-password")
+	public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+		ForgotPasswordResponse response = mobileAuthService.issuePasswordResetToken(request);
+		return ResponseEntity.accepted().body(response);
+	}
+
+	@PostMapping("/reset-password")
+	public ApiResponse<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+		return new ApiResponse<>(mobileAuthService.resetPassword(request));
+	}
+
 	@PostMapping("/change-password")
 	public ApiResponse<ChangePasswordResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
 		return new ApiResponse<>(mobileAuthService.changePassword(currentUserProvider.requireCurrentUser(), request));

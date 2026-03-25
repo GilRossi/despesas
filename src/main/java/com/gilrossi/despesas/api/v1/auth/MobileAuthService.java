@@ -11,6 +11,7 @@ import com.gilrossi.despesas.security.ApiIssuedToken;
 import com.gilrossi.despesas.security.ApiTokenService;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
 import com.gilrossi.despesas.security.PasswordManagementService;
+import com.gilrossi.despesas.security.PasswordResetTokenService;
 import com.gilrossi.despesas.security.RefreshTokenRotationResult;
 import com.gilrossi.despesas.security.RefreshTokenService;
 import com.gilrossi.despesas.security.SecurityAuditLogger;
@@ -22,6 +23,7 @@ public class MobileAuthService {
 
 	private final AuthenticationManager authenticationManager;
 	private final ApiTokenService apiTokenService;
+	private final PasswordResetTokenService passwordResetTokenService;
 	private final RefreshTokenService refreshTokenService;
 	private final PasswordManagementService passwordManagementService;
 	private final AbuseProtectionService abuseProtectionService;
@@ -30,6 +32,7 @@ public class MobileAuthService {
 	public MobileAuthService(
 		AuthenticationManager authenticationManager,
 		ApiTokenService apiTokenService,
+		PasswordResetTokenService passwordResetTokenService,
 		RefreshTokenService refreshTokenService,
 		PasswordManagementService passwordManagementService,
 		AbuseProtectionService abuseProtectionService,
@@ -37,6 +40,7 @@ public class MobileAuthService {
 	) {
 		this.authenticationManager = authenticationManager;
 		this.apiTokenService = apiTokenService;
+		this.passwordResetTokenService = passwordResetTokenService;
 		this.refreshTokenService = refreshTokenService;
 		this.passwordManagementService = passwordManagementService;
 		this.abuseProtectionService = abuseProtectionService;
@@ -70,6 +74,20 @@ public class MobileAuthService {
 
 	public ChangePasswordResponse changePassword(AuthenticatedHouseholdUser principal, ChangePasswordRequest request) {
 		return passwordManagementService.changeOwnPassword(principal, request);
+	}
+
+	public ForgotPasswordResponse issuePasswordResetToken(ForgotPasswordRequest request) {
+		try {
+			abuseProtectionService.checkAuthLogin(request.email());
+		} catch (RateLimitExceededException exception) {
+			securityAuditLogger.loginRateLimited(request.email(), exception);
+			throw exception;
+		}
+		return passwordManagementService.issuePasswordResetToken(request);
+	}
+
+	public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+		return passwordManagementService.resetPassword(request);
 	}
 
 	private MobileAuthResponse responseFor(AuthenticatedHouseholdUser principal, ApiIssuedToken refreshToken) {

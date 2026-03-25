@@ -15,7 +15,7 @@ class SecurityConfigTest {
 		SecurityConfig securityConfig = new SecurityConfig();
 		assertNotNull(securityConfig.apiTokenService(
 			new ObjectMapper(),
-			new ApiSecurityProperties("test-token-secret", List.of("http://localhost:*"))
+			new ApiSecurityProperties("test-token-secret", "test-reset-secret", List.of("http://localhost:*"), false)
 		));
 	}
 }

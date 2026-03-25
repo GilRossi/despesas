@@ -55,6 +55,14 @@ public class SecurityConfig {
 	}
 
 	@Bean
+	PasswordResetTokenService passwordResetTokenService(
+		ObjectMapper objectMapper,
+		ApiSecurityProperties properties
+	) {
+		return new PasswordResetTokenService(objectMapper, properties.passwordResetSecret());
+	}
+
+	@Bean
 	ApiBearerTokenAuthenticationFilter apiBearerTokenAuthenticationFilter(
 		ApiTokenService apiTokenService,
 		HouseholdUserDetailsService householdUserDetailsService,
@@ -104,7 +112,7 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
 				.requestMatchers("/api/v1/operations/**").hasRole("OPERATIONAL_EMAIL_INGESTION")
 				.requestMatchers("/api/v1/auth/me").authenticated()
 				.anyRequest().authenticated())

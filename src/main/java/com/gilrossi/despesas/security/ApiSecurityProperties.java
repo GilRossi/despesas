@@ -12,6 +12,9 @@ import jakarta.validation.constraints.NotBlank;
 public record ApiSecurityProperties(
 	@NotBlank(message = "app.security.token-secret must be configured")
 	String tokenSecret,
-	List<String> corsAllowedOriginPatterns
+	@NotBlank(message = "app.security.password-reset-secret must be configured")
+	String passwordResetSecret,
+	List<String> corsAllowedOriginPatterns,
+	boolean exposeResetToken
 ) {
 }
