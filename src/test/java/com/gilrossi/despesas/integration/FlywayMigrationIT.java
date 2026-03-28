@@ -74,7 +74,9 @@ class FlywayMigrationIT {
 			"subcategories",
 			"space_references",
 			"expenses",
-			"payments"
+			"payments",
+			"incomes",
+			"fixed_bills"
 		);
 	}
 
@@ -95,6 +97,10 @@ class FlywayMigrationIT {
 			"idx_expenses_household_id_due_date_id",
 			"idx_expenses_household_id_category_snapshot_due_date_id",
 			"idx_expenses_household_id_category_fk_due_date_id",
+			"idx_fixed_bills_household_active_due_date_id",
+			"idx_fixed_bills_household_space_reference_due_date",
+			"idx_incomes_household_received_on_id",
+			"idx_incomes_household_space_reference_received_on",
 			"idx_expenses_household_id_subcategory_fk_due_date_id",
 			"idx_payments_expense_id_paid_at_id",
 			"idx_space_references_household_normalized_name",
@@ -160,6 +166,37 @@ class FlywayMigrationIT {
 			"created_at",
 			"updated_at",
 			"deleted_at"
+		);
+	}
+
+	@Test
+	void deve_criar_tabela_fixed_bills_com_colunas_minimas() {
+		List<String> columnNames = this.jdbcTemplate.queryForList(
+			"""
+				select column_name
+				from information_schema.columns
+				where table_schema = 'public'
+				  and table_name = 'fixed_bills'
+				order by column_name
+				""",
+			String.class
+		);
+
+		assertThat(columnNames).contains(
+			"household_id",
+			"description",
+			"amount",
+			"first_due_date",
+			"frequency",
+			"context",
+			"category_id",
+			"category_name_snapshot",
+			"subcategory_id",
+			"subcategory_name_snapshot",
+			"space_reference_id",
+			"active",
+			"created_at",
+			"updated_at"
 		);
 	}
 
