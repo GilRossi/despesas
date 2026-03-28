@@ -42,6 +42,11 @@ public class ApiExceptionHandler {
 		return ApiErrorResponses.validation(exception);
 	}
 
+	@ExceptionHandler(FieldBusinessRuleException.class)
+	public ResponseEntity<ApiErrorResponse> fieldBusinessRule(FieldBusinessRuleException exception) {
+		return ApiErrorResponses.unprocessable(exception.getMessage(), exception.getFieldErrors());
+	}
+
 	@ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
 	public org.springframework.http.ResponseEntity<ApiErrorResponse> badRequest(Exception exception) {
 		return ApiErrorResponses.badRequest("INVALID_REQUEST", "Request payload is invalid");

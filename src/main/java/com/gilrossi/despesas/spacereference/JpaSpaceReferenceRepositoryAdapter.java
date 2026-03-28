@@ -39,6 +39,13 @@ public class JpaSpaceReferenceRepositoryAdapter implements SpaceReferenceReposit
 
 	@Override
 	@Transactional(readOnly = true)
+	public Optional<SpaceReference> findById(Long householdId, Long id) {
+		return repository.findByIdAndHouseholdIdAndDeletedAtIsNull(id, householdId)
+			.map(this::toDomain);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Optional<SpaceReference> findByTypeAndNormalizedName(Long householdId, SpaceReferenceType type, String normalizedName) {
 		return repository.findByHouseholdIdAndTypeAndNormalizedNameAndDeletedAtIsNull(householdId, type, normalizedName)
 			.map(this::toDomain);

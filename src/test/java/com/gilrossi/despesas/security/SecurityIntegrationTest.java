@@ -117,6 +117,21 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_retornar_401_quando_criacao_de_ganho_sem_autenticacao() throws Exception {
+		mockMvc.perform(post("/api/v1/incomes")
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Salário",
+					  "amount":4500.00,
+					  "receivedOn":"2026-03-28"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")
 				.header("Origin", "http://localhost:54721")

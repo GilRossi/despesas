@@ -48,6 +48,10 @@ public final class ApiErrorResponses {
 		return build(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE", message, List.of());
 	}
 
+	public static ResponseEntity<ApiErrorResponse> unprocessable(String message, List<FieldErrorResponse> fieldErrors) {
+		return build(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE", message, fieldErrors);
+	}
+
 	public static ResponseEntity<ApiErrorResponse> internalError() {
 		return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Unexpected error", List.of());
 	}
