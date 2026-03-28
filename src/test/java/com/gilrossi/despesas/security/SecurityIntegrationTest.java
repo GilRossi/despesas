@@ -110,6 +110,13 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_retornar_401_quando_listagem_de_referencias_sem_autenticacao() throws Exception {
+		mockMvc.perform(get("/api/v1/space/references"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")
 				.header("Origin", "http://localhost:54721")
@@ -397,6 +404,44 @@ class SecurityIntegrationTest {
 					  "active":true
 					}
 				"""))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"))
+			.andExpect(jsonPath("$.fieldErrors").isArray())
+			.andExpect(jsonPath("$.fieldErrors").isEmpty());
+	}
+
+	@Test
+	void deve_negar_criacao_de_referencia_do_espaco_para_member() throws Exception {
+		registrationService.register(new RegistrationRequest(
+			"Ana",
+			"owner-space-reference@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+		String ownerToken = loginApi("owner-space-reference@local.invalid", "senha123");
+
+		mockMvc.perform(post("/api/v1/household/members")
+				.header("Authorization", bearer(ownerToken))
+				.contentType("application/json")
+				.content("""
+					{
+					  "name":"Bia",
+					  "email":"member-space-reference@local.invalid",
+					  "password":"senha456"
+					}
+					"""))
+			.andExpect(status().isCreated());
+		String memberToken = loginApi("member-space-reference@local.invalid", "senha456");
+
+		mockMvc.perform(post("/api/v1/space/references")
+				.header("Authorization", bearer(memberToken))
+				.contentType("application/json")
+				.content("""
+					{
+					  "type":"CASA",
+					  "name":"Casa da Praia"
+					}
+					"""))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"))
 			.andExpect(jsonPath("$.fieldErrors").isArray())
