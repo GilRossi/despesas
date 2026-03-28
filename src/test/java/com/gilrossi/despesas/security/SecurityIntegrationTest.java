@@ -144,6 +144,7 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.data.accessToken").isString())
 			.andExpect(jsonPath("$.data.refreshToken").isString())
 			.andExpect(jsonPath("$.data.user.email").value("ana-token@local.invalid"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(false))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
@@ -154,7 +155,8 @@ class SecurityIntegrationTest {
 				.header("Authorization", "Bearer " + accessToken))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.email").value("ana-token@local.invalid"))
-			.andExpect(jsonPath("$.data.householdId").value(greaterThanOrEqualTo(1)));
+			.andExpect(jsonPath("$.data.householdId").value(greaterThanOrEqualTo(1)))
+			.andExpect(jsonPath("$.data.onboarding.completed").value(false));
 	}
 
 	@Test
@@ -192,7 +194,8 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
 			.andExpect(jsonPath("$.data.accessToken").isString())
 			.andExpect(jsonPath("$.data.refreshToken").isString())
-			.andExpect(jsonPath("$.data.user.email").value("ana-refresh@local.invalid"));
+			.andExpect(jsonPath("$.data.user.email").value("ana-refresh@local.invalid"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(false));
 	}
 
 	@Test

@@ -62,13 +62,6 @@ public class AuthController {
 
 	@GetMapping("/me")
 	public ApiResponse<AuthResponse> me() {
-		var principal = currentUserProvider.requireCurrentUser();
-		return new ApiResponse<>(new AuthResponse(
-			principal.getUserId(),
-			principal.getHouseholdId(),
-			principal.getUsername(),
-			principal.getDisplayName(),
-			principal.getRole()
-		));
+		return new ApiResponse<>(mobileAuthService.currentUser(currentUserProvider.requireCurrentUser()));
 	}
 }
