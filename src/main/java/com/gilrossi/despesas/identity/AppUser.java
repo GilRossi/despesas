@@ -33,6 +33,12 @@ public class AppUser {
 	@Column(name = "credentials_updated_at", nullable = false)
 	private Instant credentialsUpdatedAt;
 
+	@Column(name = "onboarding_completed", nullable = false)
+	private boolean onboardingCompleted;
+
+	@Column(name = "onboarding_completed_at")
+	private Instant onboardingCompletedAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "platform_role", nullable = false, length = 32)
 	private PlatformUserRole platformRole = PlatformUserRole.STANDARD_USER;
@@ -103,6 +109,22 @@ public class AppUser {
 
 	public Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	public boolean isOnboardingCompleted() {
+		return onboardingCompleted;
+	}
+
+	public Instant getOnboardingCompletedAt() {
+		return onboardingCompletedAt;
+	}
+
+	public void markOnboardingCompleted(Instant completedAt) {
+		if (this.onboardingCompleted && this.onboardingCompletedAt != null) {
+			return;
+		}
+		this.onboardingCompleted = true;
+		this.onboardingCompletedAt = completedAt;
 	}
 
 	public PlatformUserRole getPlatformRole() {

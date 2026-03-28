@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.gilrossi.despesas.api.v1.shared.ApiExceptionHandler;
 import com.gilrossi.despesas.identity.AuthResponse;
+import com.gilrossi.despesas.identity.OnboardingStatusResponse;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
 import com.gilrossi.despesas.security.CurrentUserProvider;
 
@@ -45,7 +46,14 @@ class AuthControllerTest {
 			Instant.parse("2026-03-20T04:00:00Z"),
 			"refresh-token",
 			Instant.parse("2026-04-19T04:00:00Z"),
-			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", "OWNER")
+			new AuthResponse(
+				1L,
+				10L,
+				"ana@local.invalid",
+				"Ana",
+				"OWNER",
+				new OnboardingStatusResponse(false, null)
+			)
 		));
 
 		mockMvc.perform(post("/api/v1/auth/login")
@@ -60,7 +68,8 @@ class AuthControllerTest {
 			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
 			.andExpect(jsonPath("$.data.accessToken").value("access-token"))
 			.andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-			.andExpect(jsonPath("$.data.user.email").value("ana@local.invalid"));
+			.andExpect(jsonPath("$.data.user.email").value("ana@local.invalid"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(false));
 	}
 
 	@Test
@@ -87,7 +96,14 @@ class AuthControllerTest {
 			Instant.parse("2026-03-20T04:00:00Z"),
 			"novo-refresh-token",
 			Instant.parse("2026-04-19T04:00:00Z"),
-			new AuthResponse(1L, 10L, "ana@local.invalid", "Ana", "OWNER")
+			new AuthResponse(
+				1L,
+				10L,
+				"ana@local.invalid",
+				"Ana",
+				"OWNER",
+				new OnboardingStatusResponse(true, Instant.parse("2026-03-19T10:15:30Z"))
+			)
 		));
 
 		mockMvc.perform(post("/api/v1/auth/refresh")
@@ -99,7 +115,9 @@ class AuthControllerTest {
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.accessToken").value("novo-access-token"))
-			.andExpect(jsonPath("$.data.refreshToken").value("novo-refresh-token"));
+			.andExpect(jsonPath("$.data.refreshToken").value("novo-refresh-token"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(true))
+			.andExpect(jsonPath("$.data.user.onboarding.completedAt").value("2026-03-19T10:15:30Z"));
 	}
 
 	@Test
@@ -107,11 +125,20 @@ class AuthControllerTest {
 		when(currentUserProvider.requireCurrentUser()).thenReturn(
 			new AuthenticatedHouseholdUser(1L, 10L, "OWNER", "Ana", "ana@local.invalid", "{noop}senha123", Instant.now())
 		);
+		when(mobileAuthService.currentUser(any())).thenReturn(new AuthResponse(
+			1L,
+			10L,
+			"ana@local.invalid",
+			"Ana",
+			"OWNER",
+			new OnboardingStatusResponse(false, null)
+		));
 
 		mockMvc.perform(get("/api/v1/auth/me"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.email").value("ana@local.invalid"))
-			.andExpect(jsonPath("$.data.householdId").value(10));
+			.andExpect(jsonPath("$.data.householdId").value(10))
+			.andExpect(jsonPath("$.data.onboarding.completed").value(false));
 	}
 
 	@Test

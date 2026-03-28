@@ -6,7 +6,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
+import com.gilrossi.despesas.identity.AppUser;
+import com.gilrossi.despesas.identity.AppUserNotFoundException;
+import com.gilrossi.despesas.identity.AppUserRepository;
 import com.gilrossi.despesas.identity.AuthResponse;
+import com.gilrossi.despesas.identity.OnboardingStatusResponse;
 import com.gilrossi.despesas.security.ApiIssuedToken;
 import com.gilrossi.despesas.security.ApiTokenService;
 import com.gilrossi.despesas.security.AuthenticatedHouseholdUser;
@@ -22,6 +26,7 @@ import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 public class MobileAuthService {
 
 	private final AuthenticationManager authenticationManager;
+	private final AppUserRepository appUserRepository;
 	private final ApiTokenService apiTokenService;
 	private final PasswordResetTokenService passwordResetTokenService;
 	private final RefreshTokenService refreshTokenService;
@@ -31,6 +36,7 @@ public class MobileAuthService {
 
 	public MobileAuthService(
 		AuthenticationManager authenticationManager,
+		AppUserRepository appUserRepository,
 		ApiTokenService apiTokenService,
 		PasswordResetTokenService passwordResetTokenService,
 		RefreshTokenService refreshTokenService,
@@ -39,6 +45,7 @@ public class MobileAuthService {
 		SecurityAuditLogger securityAuditLogger
 	) {
 		this.authenticationManager = authenticationManager;
+		this.appUserRepository = appUserRepository;
 		this.apiTokenService = apiTokenService;
 		this.passwordResetTokenService = passwordResetTokenService;
 		this.refreshTokenService = refreshTokenService;
@@ -90,6 +97,10 @@ public class MobileAuthService {
 		return passwordManagementService.resetPassword(request);
 	}
 
+	public AuthResponse currentUser(AuthenticatedHouseholdUser principal) {
+		return buildAuthResponse(principal);
+	}
+
 	private MobileAuthResponse responseFor(AuthenticatedHouseholdUser principal, ApiIssuedToken refreshToken) {
 		var accessToken = apiTokenService.issueAccessToken(principal);
 		return new MobileAuthResponse(
@@ -98,13 +109,20 @@ public class MobileAuthService {
 			accessToken.expiresAt(),
 			refreshToken.value(),
 			refreshToken.expiresAt(),
-			new AuthResponse(
-				principal.getUserId(),
-				principal.getHouseholdId(),
-				principal.getUsername(),
-				principal.getDisplayName(),
-				principal.getRole()
-			)
+			buildAuthResponse(principal)
+		);
+	}
+
+	private AuthResponse buildAuthResponse(AuthenticatedHouseholdUser principal) {
+		AppUser user = appUserRepository.findByIdAndDeletedAtIsNull(principal.getUserId())
+			.orElseThrow(() -> new AppUserNotFoundException("User not found"));
+		return new AuthResponse(
+			principal.getUserId(),
+			principal.getHouseholdId(),
+			principal.getUsername(),
+			principal.getDisplayName(),
+			principal.getRole(),
+			OnboardingStatusResponse.from(user)
 		);
 	}
 }

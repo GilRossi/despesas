@@ -24,6 +24,9 @@ import com.gilrossi.despesas.financialassistant.FinancialAssistantRecommendation
 import com.gilrossi.despesas.financialassistant.FinancialAssistantRecommendationsResponse;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantAnalyticsService;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantInsightsService;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterRequest;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterResponse;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterService;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantSupport;
 
 @RestController
@@ -34,17 +37,20 @@ public class FinancialAssistantController {
 	private final FinancialAssistantInsightsService insightsService;
 	private final FinancialAssistantRecommendationService recommendationService;
 	private final FinancialAssistantQueryService queryService;
+	private final FinancialAssistantStarterService starterService;
 
 	public FinancialAssistantController(
 		FinancialAssistantAnalyticsService analyticsService,
 		FinancialAssistantInsightsService insightsService,
 		FinancialAssistantRecommendationService recommendationService,
-		FinancialAssistantQueryService queryService
+		FinancialAssistantQueryService queryService,
+		FinancialAssistantStarterService starterService
 	) {
 		this.analyticsService = analyticsService;
 		this.insightsService = insightsService;
 		this.recommendationService = recommendationService;
 		this.queryService = queryService;
+		this.starterService = starterService;
 	}
 
 	@GetMapping("/summary")
@@ -76,5 +82,10 @@ public class FinancialAssistantController {
 	@PostMapping("/query")
 	public ApiResponse<FinancialAssistantQueryResponse> query(@Valid @RequestBody FinancialAssistantQueryRequest request) {
 		return new ApiResponse<>(queryService.ask(request));
+	}
+
+	@PostMapping("/starter-intent")
+	public ApiResponse<FinancialAssistantStarterResponse> starterIntent(@Valid @RequestBody FinancialAssistantStarterRequest request) {
+		return new ApiResponse<>(starterService.respond(request.intent()));
 	}
 }

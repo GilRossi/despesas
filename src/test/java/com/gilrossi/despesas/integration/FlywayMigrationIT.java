@@ -120,6 +120,22 @@ class FlywayMigrationIT {
 	}
 
 	@Test
+	void deve_adicionar_colunas_minimas_de_onboarding_no_usuario() {
+		List<String> columnNames = this.jdbcTemplate.queryForList(
+			"""
+				select column_name
+				from information_schema.columns
+				where table_schema = 'public'
+				  and table_name = 'users'
+				order by column_name
+				""",
+			String.class
+		);
+
+		assertThat(columnNames).contains("onboarding_completed", "onboarding_completed_at");
+	}
+
+	@Test
 	void deveImpedirSubcategoriaComCategoriaDeOutroHousehold() {
 		this.jdbcTemplate.update("insert into households (name) values (?)", "Casa A");
 		this.jdbcTemplate.update("insert into households (name) values (?)", "Casa B");

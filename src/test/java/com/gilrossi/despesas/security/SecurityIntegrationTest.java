@@ -97,6 +97,19 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_retornar_401_quando_starter_intent_sem_autenticacao() throws Exception {
+		mockMvc.perform(post("/api/v1/financial-assistant/starter-intent")
+				.contentType("application/json")
+				.content("""
+					{
+					  "intent":"FIXED_BILLS"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")
 				.header("Origin", "http://localhost:54721")
@@ -144,6 +157,7 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.data.accessToken").isString())
 			.andExpect(jsonPath("$.data.refreshToken").isString())
 			.andExpect(jsonPath("$.data.user.email").value("ana-token@local.invalid"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(false))
 			.andReturn()
 			.getResponse()
 			.getContentAsString();
@@ -154,7 +168,8 @@ class SecurityIntegrationTest {
 				.header("Authorization", "Bearer " + accessToken))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.email").value("ana-token@local.invalid"))
-			.andExpect(jsonPath("$.data.householdId").value(greaterThanOrEqualTo(1)));
+			.andExpect(jsonPath("$.data.householdId").value(greaterThanOrEqualTo(1)))
+			.andExpect(jsonPath("$.data.onboarding.completed").value(false));
 	}
 
 	@Test
@@ -192,7 +207,46 @@ class SecurityIntegrationTest {
 			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
 			.andExpect(jsonPath("$.data.accessToken").isString())
 			.andExpect(jsonPath("$.data.refreshToken").isString())
-			.andExpect(jsonPath("$.data.user.email").value("ana-refresh@local.invalid"));
+			.andExpect(jsonPath("$.data.user.email").value("ana-refresh@local.invalid"))
+			.andExpect(jsonPath("$.data.user.onboarding.completed").value(false));
+	}
+
+	@Test
+	void deve_responder_starter_intent_autenticado() throws Exception {
+		registrationService.register(new RegistrationRequest(
+			"Ana",
+			"ana-starter@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+
+		String loginResponse = mockMvc.perform(post("/api/v1/auth/login")
+				.contentType("application/json")
+				.content("""
+					{
+					  "email":"ana-starter@local.invalid",
+					  "password":"senha123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		String accessToken = objectMapper.readTree(loginResponse).path("data").path("accessToken").asText();
+
+		mockMvc.perform(post("/api/v1/financial-assistant/starter-intent")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType("application/json")
+				.content("""
+					{
+					  "intent":"REGISTER_INCOME"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.intent").value("REGISTER_INCOME"))
+			.andExpect(jsonPath("$.data.kind").value("STARTER"))
+			.andExpect(jsonPath("$.data.primaryActionKey").value("OPEN_REGISTER_INCOME"));
 	}
 
 	@Test

@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -34,6 +36,10 @@ import com.gilrossi.despesas.financialassistant.FinancialAssistantQueryService;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantRecommendationService;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantRecommendationsResponse;
 import com.gilrossi.despesas.financialassistant.FinancialAssistantIntent;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterIntent;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterKind;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterResponse;
+import com.gilrossi.despesas.financialassistant.FinancialAssistantStarterService;
 import com.gilrossi.despesas.financialassistant.MonthComparisonResponse;
 import com.gilrossi.despesas.financialassistant.RecommendationResponse;
 
@@ -56,6 +62,9 @@ class FinancialAssistantControllerTest {
 
 	@MockitoBean
 	private FinancialAssistantQueryService queryService;
+
+	@MockitoBean
+	private FinancialAssistantStarterService starterService;
 
 	@Test
 	void deve_retornar_summary_do_assistente_financeiro() throws Exception {
@@ -225,5 +234,66 @@ class FinancialAssistantControllerTest {
 					"""))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+		"FIXED_BILLS,Vamos começar pelas suas contas fixas,OPEN_FIXED_BILLS",
+		"IMPORT_HISTORY,Vamos trazer seu historico,OPEN_IMPORT_HISTORY",
+		"REGISTER_INCOME,Vamos registrar seus ganhos,OPEN_REGISTER_INCOME",
+		"CONFIGURE_SPACE,Vamos configurar seu Espaco,OPEN_CONFIGURE_SPACE"
+	})
+	void deve_retornar_starter_intent_deterministico(
+		String intent,
+		String title,
+		String primaryActionKey
+	) throws Exception {
+		FinancialAssistantStarterIntent starterIntent = FinancialAssistantStarterIntent.valueOf(intent);
+		when(starterService.respond(starterIntent)).thenReturn(new FinancialAssistantStarterResponse(
+			starterIntent,
+			FinancialAssistantStarterKind.STARTER,
+			title,
+			"mensagem amigavel",
+			primaryActionKey
+		));
+
+		mockMvc.perform(post("/api/v1/financial-assistant/starter-intent")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "intent":"%s"
+					}
+					""".formatted(intent)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.intent").value(intent))
+			.andExpect(jsonPath("$.data.kind").value("STARTER"))
+			.andExpect(jsonPath("$.data.title").value(title))
+			.andExpect(jsonPath("$.data.message").value("mensagem amigavel"))
+			.andExpect(jsonPath("$.data.primaryActionKey").value(primaryActionKey));
+	}
+
+	@Test
+	void deve_validar_intent_obrigatoria_no_endpoint_de_starter_intent() throws Exception {
+		mockMvc.perform(post("/api/v1/financial-assistant/starter-intent")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+	}
+
+	@Test
+	void deve_rejeitar_starter_intent_invalida() throws Exception {
+		mockMvc.perform(post("/api/v1/financial-assistant/starter-intent")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "intent":"NOT_A_REAL_INTENT"
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
 	}
 }
