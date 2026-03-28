@@ -72,6 +72,7 @@ class FlywayMigrationIT {
 			"household_members",
 			"categories",
 			"subcategories",
+			"space_references",
 			"expenses",
 			"payments"
 		);
@@ -96,10 +97,13 @@ class FlywayMigrationIT {
 			"idx_expenses_household_id_category_fk_due_date_id",
 			"idx_expenses_household_id_subcategory_fk_due_date_id",
 			"idx_payments_expense_id_paid_at_id",
+			"idx_space_references_household_normalized_name",
+			"idx_space_references_household_type_name",
 			"idx_subcategories_category_id_name",
 			"idx_subcategories_household_id_category_id_name",
 			"uq_expenses_legacy_tb_despesa_id",
-			"uq_household_members_user_active"
+			"uq_household_members_user_active",
+			"uq_space_references_household_type_normalized_active"
 		);
 	}
 
@@ -133,6 +137,30 @@ class FlywayMigrationIT {
 		);
 
 		assertThat(columnNames).contains("onboarding_completed", "onboarding_completed_at");
+	}
+
+	@Test
+	void deve_criar_tabela_de_referencias_do_espaco_com_colunas_minimas() {
+		List<String> columnNames = this.jdbcTemplate.queryForList(
+			"""
+				select column_name
+				from information_schema.columns
+				where table_schema = 'public'
+				  and table_name = 'space_references'
+				order by column_name
+				""",
+			String.class
+		);
+
+		assertThat(columnNames).contains(
+			"household_id",
+			"type",
+			"name",
+			"normalized_name",
+			"created_at",
+			"updated_at",
+			"deleted_at"
+		);
 	}
 
 	@Test
