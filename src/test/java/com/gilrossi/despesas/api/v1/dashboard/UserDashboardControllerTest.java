@@ -59,7 +59,7 @@ class UserDashboardControllerTest {
 					LocalDate.of(2026, 3, 10),
 					ExpenseStatus.VENCIDA,
 					new BigDecimal("120.00"),
-					"/expenses"
+					"/expenses/9/pay"
 				))
 			),
 			new UserDashboardResponse.RecentActivity(List.of(
@@ -125,6 +125,7 @@ class UserDashboardControllerTest {
 			.andExpect(jsonPath("$.data.role").value("OWNER"))
 			.andExpect(jsonPath("$.data.summaryMain.referenceMonth").value("2026-03"))
 			.andExpect(jsonPath("$.data.actionNeeded.items[0].status").value("VENCIDA"))
+			.andExpect(jsonPath("$.data.actionNeeded.items[0].route").value("/expenses/9/pay"))
 			.andExpect(jsonPath("$.data.recentActivity.items[0].type").value("PAYMENT_RECORDED"))
 			.andExpect(jsonPath("$.data.monthOverview.referenceMonth").value("2026-03"))
 			.andExpect(jsonPath("$.data.categorySpending.items[0].categoryName").value("Moradia"))
