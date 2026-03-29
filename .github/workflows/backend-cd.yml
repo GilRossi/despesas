@@ -39,15 +39,79 @@ jobs:
             -Dspring-boot.build-image.imageName=despesas-backend:${{ github.sha }}
           docker tag "despesas-backend:${{ github.sha }}" despesas-backend:main
 
-      - name: Setup deploy SSH
+      - name: Validate deploy secrets presence
         env:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
-          mkdir -p ~/.ssh
+          if [ -n "${VPS_HOST:-}" ]; then
+            echo "VPS_HOST present: yes"
+          else
+            echo "VPS_HOST present: no"
+            exit 1
+          fi
+
+          if [ -n "${VPS_SSH_KEY:-}" ]; then
+            echo "VPS_SSH_KEY present: yes"
+          else
+            echo "VPS_SSH_KEY present: no"
+            exit 1
+          fi
+
+      - name: Create deploy SSH directory
+        run: mkdir -p ~/.ssh
+
+      - name: Write deploy SSH key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          umask 077
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Secure deploy SSH key
+        run: chmod 600 ~/.ssh/deploy_key
+
+      - name: Validate deploy host resolution
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          if getent ahosts "$VPS_HOST" >/dev/null 2>&1; then
+            echo "VPS_HOST resolves: yes"
+          else
+            echo "VPS_HOST resolves: no"
+            exit 1
+          fi
+
+      - name: Capture deploy host SSH key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+
+          max_attempts=5
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "SSH keyscan attempt ${attempt}/${max_attempts}"
+            : >"$tmpdir/known_host_entry"
+            : >"$tmpdir/ssh-keyscan.stderr"
+
+            if timeout 15 ssh-keyscan -T 10 -H "$VPS_HOST" >"$tmpdir/known_host_entry" 2>"$tmpdir/ssh-keyscan.stderr" && [ -s "$tmpdir/known_host_entry" ]; then
+              cat "$tmpdir/known_host_entry" >> ~/.ssh/known_hosts
+              echo "ssh-keyscan succeeded: yes"
+              exit 0
+            fi
+
+            echo "ssh-keyscan succeeded: no"
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep_seconds=$((attempt * 5))
+              echo "Waiting ${sleep_seconds}s before next ssh-keyscan retry"
+              sleep "$sleep_seconds"
+            fi
+          done
+
+          exit 1
 
       - name: Transfer image to VPS
         env:
