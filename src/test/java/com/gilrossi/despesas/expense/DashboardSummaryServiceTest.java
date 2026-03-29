@@ -61,7 +61,16 @@ class DashboardSummaryServiceTest {
 		assertThat(summary.paidAmount()).isEqualByComparingTo("40.00");
 		assertThat(summary.remainingAmount()).isEqualByComparingTo("430.00");
 		assertThat(summary.overdueCount()).isEqualTo(1);
+		assertThat(summary.overdueAmount()).isEqualByComparingTo("120.00");
+		assertThat(summary.openCount()).isEqualTo(2);
+		assertThat(summary.openAmount()).isEqualByComparingTo("310.00");
 		assertThat(summary.statuses()).extracting(DashboardStatusSummary::status)
 			.containsExactlyInAnyOrder(ExpenseStatus.VENCIDA, ExpenseStatus.PREVISTA, ExpenseStatus.PARCIALMENTE_PAGA);
+		assertThat(summary.statuses()).extracting(DashboardStatusSummary::amount)
+			.containsExactlyInAnyOrder(
+				new BigDecimal("120.00"),
+				new BigDecimal("200.00"),
+				new BigDecimal("110.00")
+			);
 	}
 }

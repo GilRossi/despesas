@@ -59,12 +59,12 @@ public class DashboardSummaryService {
 		long overdueCount = snapshots.stream().filter(snapshot -> snapshot.status() == ExpenseStatus.VENCIDA).count();
 		BigDecimal overdueAmount = snapshots.stream()
 			.filter(snapshot -> snapshot.status() == ExpenseStatus.VENCIDA)
-			.map(DashboardExpenseSnapshot::amount)
+			.map(DashboardExpenseSnapshot::remainingAmount)
 			.reduce(BigDecimal.ZERO, BigDecimal::add);
 		long openCount = snapshots.stream().filter(snapshot -> isOpen(snapshot.status())).count();
 		BigDecimal openAmount = snapshots.stream()
 			.filter(snapshot -> isOpen(snapshot.status()))
-			.map(DashboardExpenseSnapshot::amount)
+			.map(DashboardExpenseSnapshot::remainingAmount)
 			.reduce(BigDecimal.ZERO, BigDecimal::add);
 		List<DashboardStatusSummary> statuses = snapshots.stream()
 			.collect(Collectors.groupingBy(DashboardExpenseSnapshot::status, LinkedHashMap::new, Collectors.toList()))
@@ -72,7 +72,7 @@ public class DashboardSummaryService {
 			.map(entry -> new DashboardStatusSummary(
 				entry.getKey(),
 				entry.getValue().size(),
-				entry.getValue().stream().map(DashboardExpenseSnapshot::amount).reduce(BigDecimal.ZERO, BigDecimal::add)
+				entry.getValue().stream().map(DashboardExpenseSnapshot::remainingAmount).reduce(BigDecimal.ZERO, BigDecimal::add)
 			))
 			.toList();
 
@@ -94,14 +94,15 @@ public class DashboardSummaryService {
 		BigDecimal paidAmount = payments.stream()
 			.map(Payment::getAmount)
 			.reduce(BigDecimal.ZERO, BigDecimal::add);
+		BigDecimal remainingAmount = expense.getAmount().subtract(paidAmount).max(BigDecimal.ZERO);
 		ExpenseStatus status = expenseStatusCalculator.calcular(expense.getAmount(), paidAmount, expense.getDueDate(), LocalDate.now());
-		return new DashboardExpenseSnapshot(expense.getAmount(), status);
+		return new DashboardExpenseSnapshot(remainingAmount, status);
 	}
 
 	private boolean isOpen(ExpenseStatus status) {
 		return status == ExpenseStatus.PREVISTA || status == ExpenseStatus.ABERTA || status == ExpenseStatus.PARCIALMENTE_PAGA;
 	}
 
-	private record DashboardExpenseSnapshot(BigDecimal amount, ExpenseStatus status) {
+	private record DashboardExpenseSnapshot(BigDecimal remainingAmount, ExpenseStatus status) {
 	}
 }
