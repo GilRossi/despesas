@@ -132,6 +132,25 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_retornar_401_quando_criacao_de_conta_fixa_sem_autenticacao() throws Exception {
+		mockMvc.perform(post("/api/v1/fixed-bills")
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Internet fibra",
+					  "amount":129.90,
+					  "firstDueDate":"2026-04-10",
+					  "frequency":"MONTHLY",
+					  "context":"CASA",
+					  "categoryId":10,
+					  "subcategoryId":20
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")
 				.header("Origin", "http://localhost:54721")
