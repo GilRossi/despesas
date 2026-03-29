@@ -171,7 +171,7 @@ public class UserDashboardService {
 				snapshot.expense().getDueDate(),
 				snapshot.status(),
 				snapshot.remainingAmount(),
-				DEFAULT_ROUTE
+				paymentRoute(snapshot.expense().getId())
 			))
 			.toList();
 
@@ -317,6 +317,10 @@ public class UserDashboardService {
 		}
 		return paymentRepository.findAllByExpenseIdInOrderByExpenseIdAscPaidAtDescIdDesc(expenseIds).stream()
 			.collect(Collectors.groupingBy(Payment::getExpenseId, LinkedHashMap::new, Collectors.toList()));
+	}
+
+	private String paymentRoute(Long expenseId) {
+		return "/expenses/" + expenseId + "/pay";
 	}
 
 	private ExpenseSnapshot snapshot(Expense expense, List<Payment> payments) {

@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.gilrossi.despesas.api.v1.shared.ApiExceptionHandler;
 import com.gilrossi.despesas.expense.ExpenseStatus;
 import com.gilrossi.despesas.payment.CreatePaymentRequest;
+import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
 import com.gilrossi.despesas.payment.PaymentMethod;
 import com.gilrossi.despesas.payment.PaymentResponse;
 import com.gilrossi.despesas.payment.PaymentService;
@@ -85,5 +86,27 @@ class PaymentApiControllerTest {
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 			.andExpect(jsonPath("$.message").value("Request validation failed"));
+	}
+
+	@Test
+	void deve_expor_erro_de_regra_de_negocio_quando_pagamento_exceder_saldo() throws Exception {
+		when(paymentService.registrar(any(CreatePaymentRequest.class))).thenThrow(
+			new PaymentBusinessRuleException("Payment amount exceeds remaining expense balance")
+		);
+
+		mockMvc.perform(post("/api/v1/payments")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"expenseId": 1,
+						"amount": 120.00,
+						"paidAt": "%s",
+						"method": "PIX",
+						"notes": "Excesso"
+					}
+					""".formatted(LocalDate.now())))
+			.andExpect(status().isUnprocessableEntity())
+			.andExpect(jsonPath("$.code").value("BUSINESS_RULE"))
+			.andExpect(jsonPath("$.message").value("Payment amount exceeds remaining expense balance"));
 	}
 }
