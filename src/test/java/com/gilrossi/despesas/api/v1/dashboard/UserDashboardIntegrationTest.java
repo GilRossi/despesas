@@ -247,6 +247,41 @@ class UserDashboardIntegrationTest {
 			.andExpect(jsonPath("$.data.householdSummary").doesNotExist());
 	}
 
+	@Test
+	void deve_retornar_dashboard_owner_sem_erro_quando_nao_houver_referencias_no_espaco() throws Exception {
+		RegistrationResponse owner = registrationService.register(new RegistrationRequest("Lia", "owner-dashboard-no-space@local.invalid", "senha123", "Casa Sem Referencias"));
+		Category moradia = categoryRepository.save(owner.householdId(), new Category(null, "Moradia", true));
+		Subcategory internet = subcategoryRepository.save(owner.householdId(), new Subcategory(null, moradia.getId(), "Internet", true));
+		Expense expense = expenseRepository.save(new Expense(
+			owner.householdId(),
+			"Internet",
+			new BigDecimal("120.00"),
+			LocalDate.now().plusDays(1),
+			ExpenseContext.CASA,
+			moradia.getId(),
+			moradia.getName(),
+			internet.getId(),
+			internet.getName(),
+			null
+		));
+		expense.setCreatedAt(Instant.parse("2026-03-29T13:00:00Z"));
+		expenseRepository.save(expense);
+
+		String ownerToken = loginApi("owner-dashboard-no-space@local.invalid", "senha123");
+
+		mockMvc.perform(get("/api/v1/dashboard")
+				.header("Authorization", bearer(ownerToken)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.role").value("OWNER"))
+			.andExpect(jsonPath("$.data.actionNeeded.items[0].route").value("/expenses/" + expense.getId() + "/pay"))
+			.andExpect(jsonPath("$.data.householdSummary.membersCount").value(1))
+			.andExpect(jsonPath("$.data.householdSummary.ownersCount").value(1))
+			.andExpect(jsonPath("$.data.householdSummary.membersOnlyCount").value(0))
+			.andExpect(jsonPath("$.data.householdSummary.spaceReferencesCount").value(0))
+			.andExpect(jsonPath("$.data.householdSummary.referencesByGroup").isArray())
+			.andExpect(jsonPath("$.data.householdSummary.referencesByGroup").isEmpty());
+	}
+
 	private String loginApi(String email, String password) throws Exception {
 		String response = mockMvc.perform(post("/api/v1/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)

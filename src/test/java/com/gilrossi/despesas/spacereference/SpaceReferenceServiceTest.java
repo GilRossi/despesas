@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -135,6 +136,28 @@ class SpaceReferenceServiceTest {
 	}
 
 	@Test
+	void deve_listar_referencias_sem_busca_textual_quando_q_for_nulo() {
+		when(currentHouseholdProvider.requireHouseholdId()).thenReturn(7L);
+		SpaceReference reference = new SpaceReference(
+			4L,
+			7L,
+			SpaceReferenceType.CASA,
+			"Apartamento Central",
+			"apartamento central",
+			null,
+			null,
+			null
+		);
+		when(repository.findAll(7L, null, null, null)).thenReturn(List.of(reference));
+
+		List<SpaceReference> result = service.list(null, null, null);
+
+		assertEquals(1, result.size());
+		assertSame(reference, result.getFirst());
+		verify(repository).findAll(7L, null, null, null);
+	}
+
+	@Test
 	void deve_retornar_lista_vazia_quando_tipo_nao_pertencer_ao_grupo() {
 		List<SpaceReference> result = service.list(
 			SpaceReferenceTypeGroup.RESIDENCIAL,
@@ -143,6 +166,6 @@ class SpaceReferenceServiceTest {
 		);
 
 		assertTrue(result.isEmpty());
-		verify(repository, org.mockito.Mockito.never()).findAll(any(), any(), any(), any());
+		verify(repository, never()).findAll(any(), any(), any(), any());
 	}
 }

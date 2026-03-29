@@ -11,6 +11,18 @@ import com.gilrossi.despesas.spacereference.SpaceReferenceType;
 
 public interface SpaceReferenceJpaRepository extends JpaRepository<SpaceReferenceJpaEntity, Long> {
 
+	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdOrderByTypeAscNameAscIdAsc(Long householdId);
+
+	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdAndTypeOrderByTypeAscNameAscIdAsc(
+		Long householdId,
+		SpaceReferenceType type
+	);
+
+	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdAndTypeInOrderByTypeAscNameAscIdAsc(
+		Long householdId,
+		List<SpaceReferenceType> types
+	);
+
 	@Query("""
 		select r
 		from SpaceReferenceJpaEntity r
