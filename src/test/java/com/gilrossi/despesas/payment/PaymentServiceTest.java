@@ -68,6 +68,27 @@ class PaymentServiceTest {
 	}
 
 	@Test
+	void deve_registrar_quitacao_total_e_marcar_despesa_como_paga() {
+		Expense expense = novaExpense(4L, "Internet", "100.00", LocalDate.now().minusDays(1));
+		when(expenseRepository.findByIdAndHouseholdIdForUpdate(4L, 7L)).thenReturn(Optional.of(expense));
+		when(paymentRepository.findByExpenseId(4L)).thenReturn(List.of(novaPayment(1L, 4L, "40.00")));
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+			Payment payment = invocation.getArgument(0);
+			payment.setId(12L);
+			return payment;
+		});
+
+		PaymentResponse response = service.registrar(
+			new CreatePaymentRequest(4L, new BigDecimal("60.00"), LocalDate.now(), PaymentMethod.PIX, "Quitacao final")
+		);
+
+		assertEquals(new BigDecimal("60.00"), response.amount());
+		assertEquals(ExpenseStatus.PAGA, response.expenseStatus());
+		assertEquals(new BigDecimal("0.00"), response.expenseRemainingAmount());
+		assertEquals(new BigDecimal("100.00"), response.expensePaidAmount());
+	}
+
+	@Test
 	void deve_listar_pagamentos_da_despesa_na_ordem_esperada() {
 		Expense expense = novaExpense(2L, "Internet", "100.00", LocalDate.now().minusDays(1));
 		when(expenseRepository.findByIdAndHouseholdId(2L, 7L)).thenReturn(Optional.of(expense));
