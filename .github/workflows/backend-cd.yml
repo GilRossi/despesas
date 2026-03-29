@@ -82,6 +82,31 @@ jobs:
             exit 1
           fi
 
+      - name: Validate deploy host port 22 connectivity
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          max_attempts=5
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Port 22 connectivity attempt ${attempt}/${max_attempts}"
+
+            if timeout 10 bash -c 'cat < /dev/null > /dev/tcp/$1/22' _ "$VPS_HOST" 2>/dev/null; then
+              echo "VPS_HOST port 22 reachable: yes"
+              exit 0
+            fi
+
+            echo "VPS_HOST port 22 reachable: no"
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep_seconds=$((attempt * 5))
+              echo "Waiting ${sleep_seconds}s before next connectivity retry"
+              sleep "$sleep_seconds"
+            fi
+          done
+
+          exit 1
+
       - name: Capture deploy host SSH key
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
