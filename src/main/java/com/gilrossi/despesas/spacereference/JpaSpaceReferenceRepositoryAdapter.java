@@ -22,6 +22,24 @@ public class JpaSpaceReferenceRepositoryAdapter implements SpaceReferenceReposit
 	@Transactional(readOnly = true)
 	public List<SpaceReference> findAll(Long householdId, SpaceReferenceTypeGroup typeGroup, SpaceReferenceType type, String q) {
 		String normalizedQuery = SpaceReferenceNormalizer.normalizeQuery(q);
+		if (normalizedQuery == null) {
+			if (type != null) {
+				return repository.findAllByDeletedAtIsNullAndHouseholdIdAndTypeOrderByTypeAscNameAscIdAsc(householdId, type).stream()
+					.map(this::toDomain)
+					.toList();
+			}
+			if (typeGroup != null) {
+				return repository.findAllByDeletedAtIsNullAndHouseholdIdAndTypeInOrderByTypeAscNameAscIdAsc(
+					householdId,
+					SpaceReferenceType.fromGroup(typeGroup)
+				).stream()
+					.map(this::toDomain)
+					.toList();
+			}
+			return repository.findAllByDeletedAtIsNullAndHouseholdIdOrderByTypeAscNameAscIdAsc(householdId).stream()
+				.map(this::toDomain)
+				.toList();
+		}
 		if (type != null) {
 			return repository.findAllByFilters(householdId, type, normalizedQuery).stream()
 				.map(this::toDomain)
