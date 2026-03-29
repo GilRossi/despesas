@@ -103,7 +103,15 @@ class DashboardIntegrationTest {
 			.andExpect(jsonPath("$.data.totalAmount").value(320.00))
 			.andExpect(jsonPath("$.data.paidAmount").value(50.00))
 			.andExpect(jsonPath("$.data.remainingAmount").value(270.00))
-			.andExpect(jsonPath("$.data.overdueCount").value(1));
+			.andExpect(jsonPath("$.data.overdueCount").value(1))
+			.andExpect(jsonPath("$.data.overdueAmount").value(120.00))
+			.andExpect(jsonPath("$.data.openCount").value(1))
+			.andExpect(jsonPath("$.data.openAmount").value(150.00))
+			.andExpect(jsonPath("$.data.statuses.length()").value(2))
+			.andExpect(jsonPath("$.data.statuses[0].status").value("PARCIALMENTE_PAGA"))
+			.andExpect(jsonPath("$.data.statuses[0].amount").value(150.00))
+			.andExpect(jsonPath("$.data.statuses[1].status").value("VENCIDA"))
+			.andExpect(jsonPath("$.data.statuses[1].amount").value(120.00));
 	}
 
 	private String loginApi(String email, String password) throws Exception {
