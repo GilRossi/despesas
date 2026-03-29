@@ -151,6 +151,29 @@ class SecurityIntegrationTest {
 	}
 
 	@Test
+	void deve_retornar_401_quando_importacao_historica_em_lote_sem_autenticacao() throws Exception {
+		mockMvc.perform(post("/api/v1/history-imports")
+				.contentType("application/json")
+				.content("""
+					{
+					  "paymentMethod":"PIX",
+					  "entries":[
+					    {
+					      "description":"Internet janeiro",
+					      "amount":129.90,
+					      "date":"2026-01-10",
+					      "context":"CASA",
+					      "categoryId":10,
+					      "subcategoryId":20
+					    }
+					  ]
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
 	void deve_responder_preflight_cors_para_login_da_api() throws Exception {
 		mockMvc.perform(options("/api/v1/auth/login")
 				.header("Origin", "http://localhost:54721")
