@@ -140,7 +140,65 @@ public class ExpenseRepositoryIT {
 		assertThat(page.getTotalElements()).isEqualTo(2);
 		assertThat(page.getTotalPages()).isEqualTo(2);
 		assertThat(page.getContent()).hasSize(1);
-		assertThat(page.getContent().getFirst().getId()).isEqualTo(overdueNewest.getId());
-		assertThat(page.getContent().getFirst().getDescription()).isEqualTo("Mercado do mês");
+		assertThat(page.getContent().getFirst().getId()).isEqualTo(overdueOldest.getId());
+		assertThat(page.getContent().getFirst().getDescription()).isEqualTo("Mercado anterior");
+	}
+
+	@Test
+	void deve_listar_mais_recente_primeiro_pelo_momento_do_lancamento() {
+		jdbcTemplate.execute("delete from payments");
+		jdbcTemplate.execute("delete from expenses");
+		jdbcTemplate.execute("delete from subcategories");
+		jdbcTemplate.execute("delete from categories");
+		Category category = categoryRepository.save(HOUSEHOLD_ID, new Category(null, "Moradia", true));
+		Subcategory subcategory = subcategoryRepository.save(HOUSEHOLD_ID, new Subcategory(null, category.getId(), "Aluguel", true));
+
+		Expense olderOccurrenceCreatedFirst = expenseRepository.save(new Expense(
+			HOUSEHOLD_ID,
+			"Despesa antiga criada antes",
+			new BigDecimal("120.00"),
+			LocalDate.now().minusDays(1),
+			null,
+			ExpenseContext.GERAL,
+			category.getId(),
+			category.getName(),
+			subcategory.getId(),
+			subcategory.getName(),
+			"",
+			null
+		));
+		Expense newerCreatedLast = expenseRepository.save(new Expense(
+			HOUSEHOLD_ID,
+			"Despesa retroativa criada por ultimo",
+			new BigDecimal("89.90"),
+			LocalDate.now().minusDays(30),
+			null,
+			ExpenseContext.GERAL,
+			category.getId(),
+			category.getName(),
+			subcategory.getId(),
+			subcategory.getName(),
+			"",
+			null
+		));
+
+		Page<Expense> page = expenseRepository.findAllByFilters(
+			HOUSEHOLD_ID,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			null,
+			PageRequest.of(0, 20)
+		);
+
+		assertThat(page.getContent()).hasSize(2);
+		assertThat(page.getContent().get(0).getId()).isEqualTo(newerCreatedLast.getId());
+		assertThat(page.getContent().get(0).getDescription()).isEqualTo("Despesa retroativa criada por ultimo");
+		assertThat(page.getContent().get(1).getId()).isEqualTo(olderOccurrenceCreatedFirst.getId());
 	}
 }

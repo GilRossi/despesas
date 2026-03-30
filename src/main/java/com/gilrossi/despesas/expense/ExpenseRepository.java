@@ -77,7 +77,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 				or (:status = 'PREVISTA' and coalesce(sum(p.amount), 0) = 0 and e.dueDate > :today)
 				or (:status = 'ABERTA' and coalesce(sum(p.amount), 0) = 0 and (e.dueDate is null or e.dueDate = :today))
 				or (:status = 'VENCIDA' and coalesce(sum(p.amount), 0) = 0 and e.dueDate < :today))
-		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
+		order by e.createdAt desc, e.id desc
 		""")
 	Page<Expense> findAllByFilters(
 		@Param("householdId") Long householdId,
