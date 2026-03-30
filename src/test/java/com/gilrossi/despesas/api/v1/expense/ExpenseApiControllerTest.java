@@ -113,6 +113,52 @@ class ExpenseApiControllerTest {
 	}
 
 	@Test
+	void deve_criar_despesa_ja_paga_no_mesmo_fluxo() throws Exception {
+		ExpenseResponse response = new ExpenseResponse(
+			10L,
+			"Internet da casa",
+			new BigDecimal("120.00"),
+			LocalDate.now().plusDays(5),
+			LocalDate.now(),
+			new ReferenceResponse(10L, "Moradia"),
+			new ReferenceResponse(20L, "Internet"),
+			null,
+			"Conta fixa",
+			ExpenseStatus.PAGA,
+			new BigDecimal("120.00"),
+			BigDecimal.ZERO,
+			1,
+			false,
+			null,
+			null
+		);
+		when(expenseService.criar(any(CreateExpenseRequest.class))).thenReturn(response);
+		LocalDate occurredOn = LocalDate.now();
+
+		mockMvc.perform(post("/api/v1/expenses")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"description": "Internet da casa",
+						"amount": 120.00,
+						"occurredOn": "%s",
+						"dueDate": "%s",
+						"categoryId": 10,
+						"subcategoryId": 20,
+						"notes": "Conta fixa",
+						"initialPayment": {
+							"paidAt": "%s",
+							"method": "PIX"
+						}
+					}
+					""".formatted(occurredOn, occurredOn.plusDays(5), occurredOn)))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.data.id").value(10))
+			.andExpect(jsonPath("$.data.status").value("PAGA"))
+			.andExpect(jsonPath("$.data.remainingAmount").value(0));
+	}
+
+	@Test
 	void deve_rejeitar_payload_invalido_quando_descricao_estiver_vazia() throws Exception {
 		LocalDate occurredOn = LocalDate.now();
 		mockMvc.perform(post("/api/v1/expenses")

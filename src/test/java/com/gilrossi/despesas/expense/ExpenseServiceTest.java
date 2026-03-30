@@ -108,6 +108,48 @@ class ExpenseServiceTest {
 	}
 
 	@Test
+	void deve_criar_despesa_ja_paga_e_registrar_pagamento_integral() {
+		Category categoria = new Category(10L, "Moradia", true);
+		Subcategory subcategoria = new Subcategory(20L, 10L, "Internet", true);
+		when(categoryRepository.findById(7L, 10L)).thenReturn(Optional.of(categoria));
+		when(subcategoryRepository.findById(7L, 20L)).thenReturn(Optional.of(subcategoria));
+		when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> {
+			Expense expense = invocation.getArgument(0);
+			expense.setId(2L);
+			return expense;
+		});
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+			Payment payment = invocation.getArgument(0);
+			payment.setId(30L);
+			return payment;
+		});
+		when(paymentRepository.findByExpenseId(2L)).thenReturn(List.of(
+			novaPayment(30L, 2L, "120.00", PaymentMethod.PIX)
+		));
+
+		ExpenseResponse response = service.criar(new CreateExpenseRequest(
+			"Internet da casa",
+			new BigDecimal("120.00"),
+			LocalDate.now(),
+			LocalDate.now().plusDays(5),
+			10L,
+			20L,
+			null,
+			"Conta quitada",
+			new CreateExpenseInitialPaymentRequest(LocalDate.now(), PaymentMethod.PIX)
+		));
+
+		assertEquals(ExpenseStatus.PAGA, response.status());
+		assertEquals(new BigDecimal("120.00"), response.paidAmount());
+		assertEquals(0, BigDecimal.ZERO.compareTo(response.remainingAmount()));
+		assertEquals(1, response.paymentsCount());
+		ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
+		verify(paymentRepository).save(paymentCaptor.capture());
+		assertEquals(new BigDecimal("120.00"), paymentCaptor.getValue().getAmount());
+		assertEquals(PaymentMethod.PIX, paymentCaptor.getValue().getMethod());
+	}
+
+	@Test
 	void deve_rejeitar_despesa_quando_subcategoria_nao_pertencer_a_categoria() {
 		when(categoryRepository.findById(7L, 10L)).thenReturn(Optional.of(new Category(10L, "Moradia", true)));
 		when(subcategoryRepository.findById(7L, 20L)).thenReturn(Optional.of(new Subcategory(20L, 11L, "Internet", true)));

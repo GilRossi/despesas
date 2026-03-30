@@ -151,6 +151,7 @@ public class ExpenseService {
 			reference == null ? null : reference.getId()
 		);
 		Expense saved = expenseRepository.save(expense);
+		registerInitialPaymentIfRequested(saved, request.initialPayment());
 		return toResponse(saved, paymentRepository.findByExpenseId(saved.getId()), toReference(reference));
 	}
 
@@ -385,6 +386,27 @@ public class ExpenseService {
 
 	private LocalDate normalizeDueDate(LocalDate dueDate) {
 		return dueDate;
+	}
+
+	private void registerInitialPaymentIfRequested(Expense expense, CreateExpenseInitialPaymentRequest request) {
+		if (request == null) {
+			return;
+		}
+		if (request.paidAt() == null) {
+			throw new IllegalArgumentException("initialPayment.paidAt must not be null");
+		}
+		if (request.method() == null) {
+			throw new IllegalArgumentException("initialPayment.method must not be null");
+		}
+		paymentRepository.save(
+			new Payment(
+				expense.getId(),
+				expense.getAmount(),
+				request.paidAt(),
+				request.method(),
+				null
+			)
+		);
 	}
 
 	private ExpenseContext defaultContext() {

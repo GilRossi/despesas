@@ -3,6 +3,7 @@ package com.gilrossi.despesas.expense;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -24,6 +25,30 @@ public record CreateExpenseRequest(
 	Long subcategoryId,
 	Long spaceReferenceId,
 	@Size(max = 255, message = "notes must have at most 255 characters")
-	String notes
+	String notes,
+	@Valid
+	CreateExpenseInitialPaymentRequest initialPayment
 ) {
+	public CreateExpenseRequest(
+		String description,
+		BigDecimal amount,
+		LocalDate occurredOn,
+		LocalDate dueDate,
+		Long categoryId,
+		Long subcategoryId,
+		Long spaceReferenceId,
+		String notes
+	) {
+		this(
+			description,
+			amount,
+			occurredOn,
+			dueDate,
+			categoryId,
+			subcategoryId,
+			spaceReferenceId,
+			notes,
+			null
+		);
+	}
 }
