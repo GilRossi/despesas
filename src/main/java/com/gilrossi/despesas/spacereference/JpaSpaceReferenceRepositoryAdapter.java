@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.spacereference;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,6 +52,17 @@ public class JpaSpaceReferenceRepositoryAdapter implements SpaceReferenceReposit
 				.toList();
 		}
 		return repository.findAllByFilters(householdId, null, normalizedQuery).stream()
+			.map(this::toDomain)
+			.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<SpaceReference> findAllByIds(Long householdId, Collection<Long> ids) {
+		if (ids == null || ids.isEmpty()) {
+			return List.of();
+		}
+		return repository.findAllByDeletedAtIsNullAndHouseholdIdAndIdInOrderByNameAscIdAsc(householdId, ids).stream()
 			.map(this::toDomain)
 			.toList();
 	}

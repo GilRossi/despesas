@@ -93,6 +93,7 @@ class ExpenseApiControllerTest {
 	void deve_criar_despesa_e_retornar_status_prevista() throws Exception {
 		ExpenseResponse response = novaExpenseResponse(10L, ExpenseStatus.PREVISTA);
 		when(expenseService.criar(any(CreateExpenseRequest.class))).thenReturn(response);
+		LocalDate occurredOn = LocalDate.now();
 
 		mockMvc.perform(post("/api/v1/expenses")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -100,13 +101,14 @@ class ExpenseApiControllerTest {
 					{
 						"description": "Internet da casa",
 						"amount": 120.00,
+						"occurredOn": "%s",
 						"dueDate": "%s",
 						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20,
 						"notes": "Conta fixa"
 					}
-					""".formatted(LocalDate.now().plusDays(5))))
+					""".formatted(occurredOn, occurredOn.plusDays(5))))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.data.id").value(10))
 			.andExpect(jsonPath("$.data.status").value("PREVISTA"));
@@ -114,18 +116,20 @@ class ExpenseApiControllerTest {
 
 	@Test
 	void deve_rejeitar_payload_invalido_quando_descricao_estiver_vazia() throws Exception {
+		LocalDate occurredOn = LocalDate.now();
 		mockMvc.perform(post("/api/v1/expenses")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
 						"description": "",
 						"amount": 120.00,
+						"occurredOn": "%s",
 						"dueDate": "%s",
 						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20
 					}
-					""".formatted(LocalDate.now().plusDays(5))))
+					""".formatted(occurredOn, occurredOn.plusDays(5))))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
 			.andExpect(jsonPath("$.message").value("Request validation failed"))
@@ -135,6 +139,7 @@ class ExpenseApiControllerTest {
 	@Test
 	void deve_atualizar_despesa_e_retornar_o_novo_estado() throws Exception {
 		when(expenseService.atualizar(any(), any(UpdateExpenseRequest.class))).thenReturn(novoDetalhe(10L, ExpenseStatus.PREVISTA));
+		LocalDate occurredOn = LocalDate.now();
 
 		mockMvc.perform(patch("/api/v1/expenses/10")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -142,13 +147,14 @@ class ExpenseApiControllerTest {
 					{
 						"description": "Internet da casa",
 						"amount": 150.00,
+						"occurredOn": "%s",
 						"dueDate": "%s",
 						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20,
 						"notes": "Atualizada"
 					}
-					""".formatted(LocalDate.now().plusDays(3))))
+					""".formatted(occurredOn, occurredOn.plusDays(3))))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.id").value(10))
 			.andExpect(jsonPath("$.data.amount").value(150.00));
@@ -163,14 +169,17 @@ class ExpenseApiControllerTest {
 	}
 
 	private ExpenseResponse novaExpenseResponse(Long id, ExpenseStatus status) {
+		LocalDate occurredOn = LocalDate.now();
 		return new ExpenseResponse(
 			id,
 			"Internet da casa",
 			new BigDecimal("120.00"),
-			LocalDate.now().plusDays(5),
+			occurredOn.plusDays(5),
+			occurredOn,
 			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Moradia"),
 			new ReferenceResponse(20L, "Internet"),
+			null,
 			"Conta fixa",
 			status,
 			new BigDecimal("0.00"),
@@ -183,14 +192,17 @@ class ExpenseApiControllerTest {
 	}
 
 	private ExpenseDetailResponse novoDetalhe(Long id, ExpenseStatus status) {
+		LocalDate occurredOn = LocalDate.now();
 		return new ExpenseDetailResponse(
 			id,
 			"Internet da casa",
 			new BigDecimal("150.00"),
-			LocalDate.now().plusDays(3),
+			occurredOn.plusDays(3),
+			occurredOn,
 			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Moradia"),
 			new ReferenceResponse(20L, "Internet"),
+			null,
 			"Atualizada",
 			status,
 			new BigDecimal("40.00"),

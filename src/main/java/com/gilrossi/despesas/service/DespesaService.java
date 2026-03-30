@@ -91,7 +91,7 @@ public class DespesaService {
 		despesa.setId(response.id());
 		despesa.setDescricao(response.description());
 		despesa.setValor(response.amount());
-		despesa.setData(response.dueDate());
+		despesa.setData(response.dueDate() != null ? response.dueDate() : response.occurredOn());
 		despesa.setContexto(response.context());
 		despesa.setCategoriaId(response.category().id());
 		despesa.setCategoria(response.category().name());
@@ -108,9 +108,11 @@ public class DespesaService {
 			response.description(),
 			response.amount(),
 			response.dueDate(),
+			response.occurredOn(),
 			response.context(),
 			response.category(),
 			response.subcategory(),
+			response.reference(),
 			response.notes(),
 			response.status(),
 			response.paidAmount(),
@@ -129,9 +131,11 @@ public class DespesaService {
 			despesa.getDescricao(),
 			despesa.getValor(),
 			despesa.getData(),
+			despesa.getData(),
 			despesa.getContexto(),
 			despesa.getCategoriaId(),
 			despesa.getSubcategoriaId(),
+			null,
 			despesa.getObservacoes()
 		);
 	}
@@ -141,9 +145,11 @@ public class DespesaService {
 			despesa.getDescricao(),
 			despesa.getValor(),
 			despesa.getData(),
+			despesa.getData(),
 			despesa.getContexto(),
 			despesa.getCategoriaId(),
 			despesa.getSubcategoriaId(),
+			null,
 			despesa.getObservacoes()
 		);
 	}

@@ -149,7 +149,7 @@ public class UserDashboardService {
 			.filter(snapshot -> snapshot.status() == ExpenseStatus.VENCIDA || isOpen(snapshot.status()))
 			.sorted(Comparator
 				.comparing((ExpenseSnapshot snapshot) -> priority(snapshot.status()))
-				.thenComparing(snapshot -> snapshot.expense().getDueDate())
+				.thenComparing(snapshot -> snapshot.expense().getEffectiveDate())
 				.thenComparing(snapshot -> snapshot.expense().getId()))
 			.toList();
 		long overdueCount = prioritized.stream().filter(snapshot -> snapshot.status() == ExpenseStatus.VENCIDA).count();

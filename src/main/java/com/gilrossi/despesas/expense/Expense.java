@@ -33,8 +33,11 @@ public class Expense {
 	@Column(name = "household_id", nullable = false)
 	private Long householdId;
 
-	@Column(name = "due_date", nullable = false)
+	@Column(name = "due_date")
 	private LocalDate dueDate;
+
+	@Column(name = "occurred_on", nullable = false)
+	private LocalDate occurredOn;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 40)
@@ -55,6 +58,9 @@ public class Expense {
 	@Column(length = 255)
 	private String notes;
 
+	@Column(name = "space_reference_id")
+	private Long spaceReferenceId;
+
 	@Transient
 	private ExpenseStatus status;
 
@@ -74,6 +80,65 @@ public class Expense {
 		Long householdId,
 		String description,
 		BigDecimal amount,
+		LocalDate occurredOn,
+		LocalDate dueDate,
+		ExpenseContext context,
+		Long categoryId,
+		String categoryNameSnapshot,
+		Long subcategoryId,
+		String subcategoryNameSnapshot,
+		String notes,
+		Long spaceReferenceId
+	) {
+		this.householdId = householdId;
+		this.description = description;
+		this.amount = amount;
+		this.occurredOn = occurredOn;
+		this.dueDate = dueDate;
+		this.context = context;
+		this.categoryId = categoryId;
+		this.categoryNameSnapshot = categoryNameSnapshot;
+		this.subcategoryId = subcategoryId;
+		this.subcategoryNameSnapshot = subcategoryNameSnapshot;
+		this.notes = notes;
+		this.spaceReferenceId = spaceReferenceId;
+		this.createdAt = Instant.now();
+		this.updatedAt = this.createdAt;
+	}
+
+	public Expense(
+		String description,
+		BigDecimal amount,
+		LocalDate occurredOn,
+		LocalDate dueDate,
+		ExpenseContext context,
+		Long categoryId,
+		String categoryNameSnapshot,
+		Long subcategoryId,
+		String subcategoryNameSnapshot,
+		String notes,
+		Long spaceReferenceId
+	) {
+		this(
+			null,
+			description,
+			amount,
+			occurredOn,
+			dueDate,
+			context,
+			categoryId,
+			categoryNameSnapshot,
+			subcategoryId,
+			subcategoryNameSnapshot,
+			notes,
+			spaceReferenceId
+		);
+	}
+
+	public Expense(
+		Long householdId,
+		String description,
+		BigDecimal amount,
 		LocalDate dueDate,
 		ExpenseContext context,
 		Long categoryId,
@@ -82,18 +147,20 @@ public class Expense {
 		String subcategoryNameSnapshot,
 		String notes
 	) {
-		this.householdId = householdId;
-		this.description = description;
-		this.amount = amount;
-		this.dueDate = dueDate;
-		this.context = context;
-		this.categoryId = categoryId;
-		this.categoryNameSnapshot = categoryNameSnapshot;
-		this.subcategoryId = subcategoryId;
-		this.subcategoryNameSnapshot = subcategoryNameSnapshot;
-		this.notes = notes;
-		this.createdAt = Instant.now();
-		this.updatedAt = this.createdAt;
+		this(
+			householdId,
+			description,
+			amount,
+			dueDate,
+			dueDate,
+			context,
+			categoryId,
+			categoryNameSnapshot,
+			subcategoryId,
+			subcategoryNameSnapshot,
+			notes,
+			null
+		);
 	}
 
 	public Expense(
@@ -112,12 +179,14 @@ public class Expense {
 			description,
 			amount,
 			dueDate,
+			dueDate,
 			context,
 			categoryId,
 			categoryNameSnapshot,
 			subcategoryId,
 			subcategoryNameSnapshot,
-			notes
+			notes,
+			null
 		);
 	}
 
@@ -159,6 +228,14 @@ public class Expense {
 
 	public void setDueDate(LocalDate dueDate) {
 		this.dueDate = dueDate;
+	}
+
+	public LocalDate getOccurredOn() {
+		return occurredOn;
+	}
+
+	public void setOccurredOn(LocalDate occurredOn) {
+		this.occurredOn = occurredOn;
 	}
 
 	public ExpenseContext getContext() {
@@ -209,6 +286,14 @@ public class Expense {
 		this.notes = notes;
 	}
 
+	public Long getSpaceReferenceId() {
+		return spaceReferenceId;
+	}
+
+	public void setSpaceReferenceId(Long spaceReferenceId) {
+		this.spaceReferenceId = spaceReferenceId;
+	}
+
 	public ExpenseStatus getStatus() {
 		return status;
 	}
@@ -249,6 +334,10 @@ public class Expense {
 		Instant now = Instant.now();
 		this.deletedAt = now;
 		this.updatedAt = now;
+	}
+
+	public LocalDate getEffectiveDate() {
+		return dueDate != null ? dueDate : occurredOn;
 	}
 
 	@PrePersist

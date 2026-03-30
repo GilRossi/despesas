@@ -117,6 +117,12 @@ public class Payment {
 		this.updatedAt = Instant.now();
 	}
 
+	public void markDeleted() {
+		Instant now = Instant.now();
+		this.deletedAt = now;
+		this.updatedAt = now;
+	}
+
 	@PrePersist
 	void prePersist() {
 		Instant now = Instant.now();

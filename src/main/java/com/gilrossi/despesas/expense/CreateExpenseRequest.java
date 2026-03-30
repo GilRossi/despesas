@@ -15,7 +15,8 @@ public record CreateExpenseRequest(
 	@NotNull(message = "amount must not be null")
 	@Positive(message = "amount must be greater than zero")
 	BigDecimal amount,
-	@NotNull(message = "dueDate must not be null")
+	@NotNull(message = "occurredOn must not be null")
+	LocalDate occurredOn,
 	LocalDate dueDate,
 	@NotNull(message = "context must not be null")
 	ExpenseContext context,
@@ -23,6 +24,7 @@ public record CreateExpenseRequest(
 	Long categoryId,
 	@NotNull(message = "subcategoryId must not be null")
 	Long subcategoryId,
+	Long spaceReferenceId,
 	@Size(max = 255, message = "notes must have at most 255 characters")
 	String notes
 ) {

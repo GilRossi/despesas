@@ -152,7 +152,7 @@ public class FinancialAssistantAnalyticsService {
 		LocalDate from = referenceMonth.minusMonths(RECURRING_MONTH_WINDOW - 1L).atDay(1);
 		LocalDate to = referenceMonth.atEndOfMonth();
 		List<Expense> expenses = expenseRepository.findAllByHouseholdIdAndDueDateGreaterThanEqual(householdId, from).stream()
-			.filter(expense -> !expense.getDueDate().isAfter(to))
+			.filter(expense -> !expense.getOccurredOn().isAfter(to))
 			.toList();
 
 		return expenses.stream()
@@ -255,13 +255,13 @@ public class FinancialAssistantAnalyticsService {
 
 	private List<TopExpenseResponse> topExpenses(List<Expense> expenses, int limit) {
 		return expenses.stream()
-			.sorted(Comparator.comparing(Expense::getAmount).reversed().thenComparing(Expense::getDueDate).reversed().thenComparing(Expense::getId).reversed())
+			.sorted(Comparator.comparing(Expense::getAmount).reversed().thenComparing(Expense::getEffectiveDate).reversed().thenComparing(Expense::getId).reversed())
 			.limit(Math.max(1, limit))
 			.map(expense -> new TopExpenseResponse(
 				expense.getId(),
 				expense.getDescription(),
 				expense.getAmount(),
-				expense.getDueDate(),
+				expense.getEffectiveDate(),
 				expense.getCategoryNameSnapshot(),
 				expense.getSubcategoryNameSnapshot(),
 				expense.getContext()
@@ -282,7 +282,7 @@ public class FinancialAssistantAnalyticsService {
 			return null;
 		}
 		Map<YearMonth, List<Expense>> byMonth = expenses.stream()
-			.collect(Collectors.groupingBy(expense -> YearMonth.from(expense.getDueDate()), LinkedHashMap::new, Collectors.toList()));
+			.collect(Collectors.groupingBy(expense -> YearMonth.from(expense.getOccurredOn()), LinkedHashMap::new, Collectors.toList()));
 		if (byMonth.size() < 2) {
 			return null;
 		}
@@ -295,7 +295,7 @@ public class FinancialAssistantAnalyticsService {
 		BigDecimal min = amounts.stream().min(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
 		BigDecimal max = amounts.stream().max(Comparator.naturalOrder()).orElse(BigDecimal.ZERO);
 		BigDecimal tolerance = averageAmount.multiply(new BigDecimal("0.10")).max(new BigDecimal("20.00"));
-		Expense latest = expenses.stream().max(Comparator.comparing(Expense::getDueDate).thenComparing(Expense::getId)).orElse(expenses.getFirst());
+		Expense latest = expenses.stream().max(Comparator.comparing(Expense::getOccurredOn).thenComparing(Expense::getId)).orElse(expenses.getFirst());
 		return new RecurringExpenseResponse(
 			latest.getDescription(),
 			latest.getCategoryNameSnapshot(),
@@ -303,7 +303,7 @@ public class FinancialAssistantAnalyticsService {
 			averageAmount,
 			byMonth.size(),
 			max.subtract(min).compareTo(tolerance) <= 0,
-			latest.getDueDate()
+			latest.getOccurredOn()
 		);
 	}
 
