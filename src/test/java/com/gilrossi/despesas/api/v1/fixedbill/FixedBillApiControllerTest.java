@@ -22,7 +22,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.gilrossi.despesas.api.v1.shared.ApiExceptionHandler;
 import com.gilrossi.despesas.api.v1.shared.FieldBusinessRuleException;
 import com.gilrossi.despesas.api.v1.shared.ReferenceResponse;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.fixedbill.CreateFixedBillRequest;
 import com.gilrossi.despesas.fixedbill.FixedBillFrequency;
 import com.gilrossi.despesas.fixedbill.FixedBillResponse;
@@ -47,7 +46,6 @@ class FixedBillApiControllerTest {
 			new BigDecimal("129.90"),
 			LocalDate.of(2026, 4, 10),
 			FixedBillFrequency.MONTHLY,
-			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Casa"),
 			new ReferenceResponse(20L, "Internet"),
 			new ReferenceResponse(30L, "Apartamento Centro"),
@@ -63,7 +61,6 @@ class FixedBillApiControllerTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":10,
 					  "subcategoryId":20,
 					  "spaceReferenceId":30
@@ -73,7 +70,6 @@ class FixedBillApiControllerTest {
 			.andExpect(jsonPath("$.data.id").value(15))
 			.andExpect(jsonPath("$.data.description").value("Internet fibra"))
 			.andExpect(jsonPath("$.data.frequency").value("MONTHLY"))
-			.andExpect(jsonPath("$.data.context").value("CASA"))
 			.andExpect(jsonPath("$.data.category.id").value(10))
 			.andExpect(jsonPath("$.data.subcategory.id").value(20))
 			.andExpect(jsonPath("$.data.spaceReference.id").value(30))
@@ -91,7 +87,6 @@ class FixedBillApiControllerTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":10,
 					  "subcategoryId":20
 					}
@@ -118,7 +113,6 @@ class FixedBillApiControllerTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":10,
 					  "subcategoryId":99
 					}

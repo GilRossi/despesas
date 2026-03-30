@@ -21,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.support.TransactionOperations;
 
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
 import com.gilrossi.despesas.security.OperationalEmailIngestionAuditLogger;
 
@@ -68,7 +67,6 @@ class EmailIngestionServiceTest {
 			new BigDecimal("289.70"),
 			LocalDate.of(2026, 3, 19),
 			LocalDate.of(2026, 3, 19),
-			ExpenseContext.PETS,
 			null,
 			null,
 			null,
@@ -254,7 +252,6 @@ class EmailIngestionServiceTest {
 			new BigDecimal("120.00"),
 			LocalDate.of(2026, 3, 25),
 			LocalDate.of(2026, 3, 19),
-			ExpenseContext.CASA,
 			null,
 			null,
 			null,

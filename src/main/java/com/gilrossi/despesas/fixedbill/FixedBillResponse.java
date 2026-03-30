@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import com.gilrossi.despesas.api.v1.shared.ReferenceResponse;
-import com.gilrossi.despesas.expense.ExpenseContext;
 
 public record FixedBillResponse(
 	Long id,
@@ -13,7 +12,6 @@ public record FixedBillResponse(
 	BigDecimal amount,
 	LocalDate firstDueDate,
 	FixedBillFrequency frequency,
-	ExpenseContext context,
 	ReferenceResponse category,
 	ReferenceResponse subcategory,
 	ReferenceResponse spaceReference,

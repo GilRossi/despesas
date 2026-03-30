@@ -76,7 +76,6 @@ class DespesaServiceTest {
 		verify(expenseService).criar(captor.capture());
 		assertEquals("Internet da casa", captor.getValue().description());
 		assertEquals(new BigDecimal("120.00"), captor.getValue().amount());
-		assertEquals(ExpenseContext.CASA, captor.getValue().context());
 		assertEquals(10L, captor.getValue().categoryId());
 		assertEquals(20L, captor.getValue().subcategoryId());
 	}
@@ -92,7 +91,6 @@ class DespesaServiceTest {
 		verify(expenseService).atualizar(eq(11L), captor.capture());
 		assertEquals("Internet da casa", captor.getValue().description());
 		assertEquals(new BigDecimal("120.00"), captor.getValue().amount());
-		assertEquals(ExpenseContext.CASA, captor.getValue().context());
 	}
 
 	@Test
@@ -103,7 +101,6 @@ class DespesaServiceTest {
 			new BigDecimal("120.00"),
 			LocalDate.of(2026, 3, 20),
 			LocalDate.of(2026, 3, 18),
-			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Moradia"),
 			new ReferenceResponse(20L, "Internet"),
 			null,
@@ -174,7 +171,6 @@ class DespesaServiceTest {
 			new BigDecimal("120.00"),
 			LocalDate.of(2026, 3, 20),
 			LocalDate.of(2026, 3, 18),
-			ExpenseContext.CASA,
 			new ReferenceResponse(10L, categoria),
 			new ReferenceResponse(20L, subcategoria),
 			null,

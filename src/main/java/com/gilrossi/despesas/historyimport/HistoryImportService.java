@@ -16,7 +16,6 @@ import com.gilrossi.despesas.catalog.category.CategoryRepository;
 import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryRepository;
 import com.gilrossi.despesas.expense.CreateExpenseRequest;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
 import com.gilrossi.despesas.expense.ExpenseStatus;
 import com.gilrossi.despesas.expense.ExpenseService;
@@ -96,11 +95,6 @@ public class HistoryImportService {
 				fieldErrors.add(new FieldErrorResponse(fieldPrefix + ".date", "date must not be null"));
 			}
 
-			ExpenseContext context = requireContext(entry.context());
-			if (context == null) {
-				fieldErrors.add(new FieldErrorResponse(fieldPrefix + ".context", "context must not be null"));
-			}
-
 			String notes = normalizeOptional(entry.notes());
 			if (notes != null && notes.length() > 255) {
 				fieldErrors.add(new FieldErrorResponse(fieldPrefix + ".notes", "notes must have at most 255 characters"));
@@ -112,7 +106,6 @@ public class HistoryImportService {
 			if (description != null
 				&& amount != null
 				&& date != null
-				&& context != null
 				&& category != null
 				&& subcategory != null
 				&& (notes == null || notes.length() <= 255)) {
@@ -120,7 +113,6 @@ public class HistoryImportService {
 					description,
 					amount,
 					date,
-					context,
 					category.getId(),
 					subcategory.getId(),
 					notes
@@ -193,7 +185,6 @@ public class HistoryImportService {
 			entry.amount(),
 			entry.date(),
 			entry.date(),
-			entry.context(),
 			entry.categoryId(),
 			entry.subcategoryId(),
 			null,
@@ -233,15 +224,10 @@ public class HistoryImportService {
 		return value;
 	}
 
-	private ExpenseContext requireContext(ExpenseContext value) {
-		return value;
-	}
-
 	private record ValidatedHistoryImportEntry(
 		String description,
 		BigDecimal amount,
 		LocalDate date,
-		ExpenseContext context,
 		Long categoryId,
 		Long subcategoryId,
 		String notes

@@ -63,7 +63,6 @@ public class ExpensePaymentPersistenceIT {
 			new BigDecimal("120.00"),
 			LocalDate.now().minusDays(1),
 			LocalDate.now().minusDays(1),
-			ExpenseContext.CASA,
 			category.getId(),
 			subcategory.getId(),
 			null,

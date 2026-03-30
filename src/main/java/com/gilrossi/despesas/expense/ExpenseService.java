@@ -142,7 +142,7 @@ public class ExpenseService {
 			requirePositive(request.amount(), "amount"),
 			requireOccurredOn(request.occurredOn()),
 			normalizeDueDate(request.dueDate()),
-			requireContext(request.context()),
+			defaultContext(),
 			category.getId(),
 			category.getName(),
 			subcategory.getId(),
@@ -180,7 +180,7 @@ public class ExpenseService {
 		expense.setAmount(updatedAmount);
 		expense.setOccurredOn(requireOccurredOn(request.occurredOn()));
 		expense.setDueDate(normalizeDueDate(request.dueDate()));
-		expense.setContext(requireContext(request.context()));
+		expense.setContext(defaultContext());
 		expense.setCategoryId(category.getId());
 		expense.setCategoryNameSnapshot(category.getName());
 		expense.setSubcategoryId(subcategory.getId());
@@ -248,7 +248,6 @@ public class ExpenseService {
 			expense.getAmount(),
 			expense.getDueDate(),
 			expense.getOccurredOn(),
-			expense.getContext(),
 			new ReferenceResponse(expense.getCategoryId(), expense.getCategoryNameSnapshot()),
 			new ReferenceResponse(expense.getSubcategoryId(), expense.getSubcategoryNameSnapshot()),
 			reference,
@@ -271,7 +270,6 @@ public class ExpenseService {
 			expense.getAmount(),
 			expense.getDueDate(),
 			expense.getOccurredOn(),
-			expense.getContext(),
 			new ReferenceResponse(expense.getCategoryId(), expense.getCategoryNameSnapshot()),
 			new ReferenceResponse(expense.getSubcategoryId(), expense.getSubcategoryNameSnapshot()),
 			reference,
@@ -389,11 +387,8 @@ public class ExpenseService {
 		return dueDate;
 	}
 
-	private ExpenseContext requireContext(ExpenseContext context) {
-		if (context == null) {
-			throw new IllegalArgumentException("context must not be null");
-		}
-		return context;
+	private ExpenseContext defaultContext() {
+		return ExpenseContext.GERAL;
 	}
 
 	private record ExpenseSnapshot(

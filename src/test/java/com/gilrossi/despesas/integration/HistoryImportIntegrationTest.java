@@ -76,7 +76,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet janeiro",
 					      "amount":129.90,
 					      "date":"2026-01-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s,
 					      "notes":"Historico importado de janeiro"
@@ -85,7 +84,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet fevereiro",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s
 					    }
@@ -151,7 +149,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet janeiro",
 					      "amount":129.90,
 					      "date":"2026-01-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s
 					    },
@@ -159,7 +156,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet fevereiro",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s
 					    }
@@ -203,7 +199,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Historico estranho",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s
 					    }
@@ -237,7 +232,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet janeiro",
 					      "amount":129.90,
 					      "date":"2026-01-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":999999
 					    }
@@ -273,7 +267,6 @@ class HistoryImportIntegrationTest {
 					      "description":"Internet janeiro",
 					      "amount":129.90,
 					      "date":"2026-01-10",
-					      "context":"CASA",
 					      "categoryId":%s,
 					      "subcategoryId":%s
 					    }

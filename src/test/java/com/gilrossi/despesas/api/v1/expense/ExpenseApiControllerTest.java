@@ -30,7 +30,6 @@ import com.gilrossi.despesas.api.v1.shared.PageInfo;
 import com.gilrossi.despesas.api.v1.shared.PageResponse;
 import com.gilrossi.despesas.api.v1.shared.ReferenceResponse;
 import com.gilrossi.despesas.expense.CreateExpenseRequest;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseDetailResponse;
 import com.gilrossi.despesas.expense.ExpenseFilter;
 import com.gilrossi.despesas.expense.ExpenseResponse;
@@ -103,7 +102,6 @@ class ExpenseApiControllerTest {
 						"amount": 120.00,
 						"occurredOn": "%s",
 						"dueDate": "%s",
-						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20,
 						"notes": "Conta fixa"
@@ -125,7 +123,6 @@ class ExpenseApiControllerTest {
 						"amount": 120.00,
 						"occurredOn": "%s",
 						"dueDate": "%s",
-						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20
 					}
@@ -149,7 +146,6 @@ class ExpenseApiControllerTest {
 						"amount": 150.00,
 						"occurredOn": "%s",
 						"dueDate": "%s",
-						"context": "CASA",
 						"categoryId": 10,
 						"subcategoryId": 20,
 						"notes": "Atualizada"
@@ -176,7 +172,6 @@ class ExpenseApiControllerTest {
 			new BigDecimal("120.00"),
 			occurredOn.plusDays(5),
 			occurredOn,
-			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Moradia"),
 			new ReferenceResponse(20L, "Internet"),
 			null,
@@ -199,7 +194,6 @@ class ExpenseApiControllerTest {
 			new BigDecimal("150.00"),
 			occurredOn.plusDays(3),
 			occurredOn,
-			ExpenseContext.CASA,
 			new ReferenceResponse(10L, "Moradia"),
 			new ReferenceResponse(20L, "Internet"),
 			null,

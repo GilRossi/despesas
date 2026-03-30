@@ -55,7 +55,7 @@ public class FixedBillService {
 			requirePositive(request.amount(), "amount"),
 			requireDate(request.firstDueDate()),
 			requireMonthly(request.frequency()),
-			requireContext(request.context()),
+			defaultContext(),
 			category.getId(),
 			category.getName(),
 			subcategory.getId(),
@@ -125,7 +125,6 @@ public class FixedBillService {
 			fixedBill.getAmount(),
 			fixedBill.getFirstDueDate(),
 			fixedBill.getFrequency(),
-			fixedBill.getContext(),
 			category,
 			subcategory,
 			reference,
@@ -169,10 +168,7 @@ public class FixedBillService {
 		return value;
 	}
 
-	private ExpenseContext requireContext(ExpenseContext value) {
-		if (value == null) {
-			throw new IllegalArgumentException("context must not be null");
-		}
-		return value;
+	private ExpenseContext defaultContext() {
+		return ExpenseContext.GERAL;
 	}
 }

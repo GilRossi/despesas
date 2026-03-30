@@ -11,6 +11,7 @@ import com.gilrossi.despesas.api.v1.shared.PageResponse;
 import com.gilrossi.despesas.catalog.CatalogOptionsResponse;
 import com.gilrossi.despesas.catalog.CatalogQueryService;
 import com.gilrossi.despesas.expense.CreateExpenseRequest;
+import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseDetailResponse;
 import com.gilrossi.despesas.expense.ExpenseFilter;
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
@@ -92,7 +93,7 @@ public class DespesaService {
 		despesa.setDescricao(response.description());
 		despesa.setValor(response.amount());
 		despesa.setData(response.dueDate() != null ? response.dueDate() : response.occurredOn());
-		despesa.setContexto(response.context());
+		despesa.setContexto(ExpenseContext.GERAL);
 		despesa.setCategoriaId(response.category().id());
 		despesa.setCategoria(response.category().name());
 		despesa.setSubcategoriaId(response.subcategory().id());
@@ -109,7 +110,6 @@ public class DespesaService {
 			response.amount(),
 			response.dueDate(),
 			response.occurredOn(),
-			response.context(),
 			response.category(),
 			response.subcategory(),
 			response.reference(),
@@ -132,7 +132,6 @@ public class DespesaService {
 			despesa.getValor(),
 			despesa.getData(),
 			despesa.getData(),
-			despesa.getContexto(),
 			despesa.getCategoriaId(),
 			despesa.getSubcategoriaId(),
 			null,
@@ -146,7 +145,6 @@ public class DespesaService {
 			despesa.getValor(),
 			despesa.getData(),
 			despesa.getData(),
-			despesa.getContexto(),
 			despesa.getCategoriaId(),
 			despesa.getSubcategoriaId(),
 			null,

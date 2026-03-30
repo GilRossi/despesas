@@ -92,7 +92,6 @@ class FixedBillIntegrationTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":%s,
 					  "spaceReferenceId":%s
@@ -103,7 +102,6 @@ class FixedBillIntegrationTest {
 			.andExpect(jsonPath("$.data.amount").value(129.90))
 			.andExpect(jsonPath("$.data.firstDueDate").value("2026-04-10"))
 			.andExpect(jsonPath("$.data.frequency").value("MONTHLY"))
-			.andExpect(jsonPath("$.data.context").value("CASA"))
 			.andExpect(jsonPath("$.data.category.id").value(category.getId()))
 			.andExpect(jsonPath("$.data.category.name").value("Casa"))
 			.andExpect(jsonPath("$.data.subcategory.id").value(subcategory.getId()))
@@ -123,7 +121,7 @@ class FixedBillIntegrationTest {
 		assertThat(persisted.getAmount()).isEqualByComparingTo(new BigDecimal("129.90"));
 		assertThat(persisted.getFirstDueDate()).isEqualTo(LocalDate.of(2026, 4, 10));
 		assertThat(persisted.getFrequency()).isEqualTo(FixedBillFrequency.MONTHLY);
-		assertThat(persisted.getContext()).isEqualTo(ExpenseContext.CASA);
+		assertThat(persisted.getContext()).isEqualTo(ExpenseContext.GERAL);
 		assertThat(persisted.getCategoryId()).isEqualTo(category.getId());
 		assertThat(persisted.getSubcategoryId()).isEqualTo(subcategory.getId());
 		assertThat(persisted.getSpaceReferenceId()).isEqualTo(spaceReferenceId);
@@ -159,7 +157,6 @@ class FixedBillIntegrationTest {
 					  "amount":450.00,
 					  "firstDueDate":"2026-04-05",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":%s
 					}
@@ -189,7 +186,6 @@ class FixedBillIntegrationTest {
 					  "amount":450.00,
 					  "firstDueDate":"2026-04-05",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":999999
 					}
@@ -221,7 +217,6 @@ class FixedBillIntegrationTest {
 					  "amount":450.00,
 					  "firstDueDate":"2026-04-05",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":%s
 					}
@@ -282,7 +277,6 @@ class FixedBillIntegrationTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":%s,
 					  "spaceReferenceId":%s
@@ -315,7 +309,6 @@ class FixedBillIntegrationTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"WEEKLY",
-					  "context":"CASA",
 					  "categoryId":%s,
 					  "subcategoryId":%s
 					}

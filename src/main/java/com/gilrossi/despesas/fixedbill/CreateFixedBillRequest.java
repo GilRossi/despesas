@@ -3,8 +3,6 @@ package com.gilrossi.despesas.fixedbill;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import com.gilrossi.despesas.expense.ExpenseContext;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -21,8 +19,6 @@ public record CreateFixedBillRequest(
 	LocalDate firstDueDate,
 	@NotNull(message = "frequency must not be null")
 	FixedBillFrequency frequency,
-	@NotNull(message = "context must not be null")
-	ExpenseContext context,
 	@NotNull(message = "categoryId must not be null")
 	Long categoryId,
 	@NotNull(message = "subcategoryId must not be null")

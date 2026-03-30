@@ -18,8 +18,6 @@ public record UpdateExpenseRequest(
 	@NotNull(message = "occurredOn must not be null")
 	LocalDate occurredOn,
 	LocalDate dueDate,
-	@NotNull(message = "context must not be null")
-	ExpenseContext context,
 	@NotNull(message = "categoryId must not be null")
 	Long categoryId,
 	@NotNull(message = "subcategoryId must not be null")
