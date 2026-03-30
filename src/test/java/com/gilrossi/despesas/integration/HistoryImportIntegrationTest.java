@@ -62,7 +62,7 @@ class HistoryImportIntegrationTest {
 		));
 		String token = loginApi("history-import-owner@local.invalid", "senha123");
 
-		Category category = requireCategory(owner.householdId(), "Casa");
+		Category category = requireCategory(owner.householdId(), "Moradia");
 		Subcategory subcategory = requireSubcategory(owner.householdId(), category.getId(), "Internet");
 
 		String response = mockMvc.perform(post("/api/v1/history-imports")
@@ -133,9 +133,9 @@ class HistoryImportIntegrationTest {
 		));
 		String tokenAna = loginApi("history-import-rollback@local.invalid", "senha123");
 
-		Category validCategory = requireCategory(ana.householdId(), "Casa");
+		Category validCategory = requireCategory(ana.householdId(), "Moradia");
 		Subcategory validSubcategory = requireSubcategory(ana.householdId(), validCategory.getId(), "Internet");
-		Category foreignCategory = requireCategory(bruno.householdId(), "Casa");
+		Category foreignCategory = requireCategory(bruno.householdId(), "Moradia");
 		Subcategory foreignSubcategory = requireSubcategory(bruno.householdId(), foreignCategory.getId(), "Internet");
 
 		mockMvc.perform(post("/api/v1/history-imports")
@@ -185,7 +185,7 @@ class HistoryImportIntegrationTest {
 		));
 		String tokenAna = loginApi("history-import-boundary-ana@local.invalid", "senha123");
 
-		Category foreignCategory = requireCategory(bruno.householdId(), "Casa");
+		Category foreignCategory = requireCategory(bruno.householdId(), "Moradia");
 		Subcategory foreignSubcategory = requireSubcategory(bruno.householdId(), foreignCategory.getId(), "Internet");
 
 		mockMvc.perform(post("/api/v1/history-imports")
@@ -219,7 +219,7 @@ class HistoryImportIntegrationTest {
 			"Casa da Ana"
 		));
 		String token = loginApi("history-import-invalid-sub@local.invalid", "senha123");
-		Category category = requireCategory(owner.householdId(), "Casa");
+		Category category = requireCategory(owner.householdId(), "Moradia");
 
 		mockMvc.perform(post("/api/v1/history-imports")
 				.header("Authorization", bearer(token))
@@ -252,9 +252,9 @@ class HistoryImportIntegrationTest {
 			"Casa da Ana"
 		));
 		String token = loginApi("history-import-incompatible@local.invalid", "senha123");
-		Category category = requireCategory(owner.householdId(), "Casa");
-		Category otherCategory = requireCategory(owner.householdId(), "Geral");
-		Subcategory incompatibleSubcategory = requireSubcategory(owner.householdId(), otherCategory.getId(), "Primeiros lançamentos");
+		Category category = requireCategory(owner.householdId(), "Moradia");
+		Category otherCategory = requireCategory(owner.householdId(), "Alimentação");
+		Subcategory incompatibleSubcategory = requireSubcategory(owner.householdId(), otherCategory.getId(), "Mercado");
 
 		mockMvc.perform(post("/api/v1/history-imports")
 				.header("Authorization", bearer(token))

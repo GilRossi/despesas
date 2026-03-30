@@ -60,7 +60,7 @@ class FixedBillIntegrationTest {
 		));
 		String token = loginApi("fixed-bill-owner@local.invalid", "senha123");
 
-		Category category = requireCategory(owner.householdId(), "Casa");
+		Category category = requireCategory(owner.householdId(), "Moradia");
 		Subcategory subcategory = requireSubcategory(owner.householdId(), category.getId(), "Internet");
 
 		String referenceResponse = mockMvc.perform(post("/api/v1/space/references")
@@ -103,7 +103,7 @@ class FixedBillIntegrationTest {
 			.andExpect(jsonPath("$.data.firstDueDate").value("2026-04-10"))
 			.andExpect(jsonPath("$.data.frequency").value("MONTHLY"))
 			.andExpect(jsonPath("$.data.category.id").value(category.getId()))
-			.andExpect(jsonPath("$.data.category.name").value("Casa"))
+			.andExpect(jsonPath("$.data.category.name").value("Moradia"))
 			.andExpect(jsonPath("$.data.subcategory.id").value(subcategory.getId()))
 			.andExpect(jsonPath("$.data.subcategory.name").value("Internet"))
 			.andExpect(jsonPath("$.data.spaceReference.id").value(spaceReferenceId))
@@ -145,7 +145,7 @@ class FixedBillIntegrationTest {
 		));
 
 		String tokenAna = loginApi("fixed-bill-ana@local.invalid", "senha123");
-		Category foreignCategory = requireCategory(bruno.householdId(), "Casa");
+		Category foreignCategory = requireCategory(bruno.householdId(), "Moradia");
 		Subcategory foreignSubcategory = requireSubcategory(bruno.householdId(), foreignCategory.getId(), "Internet");
 
 		mockMvc.perform(post("/api/v1/fixed-bills")
@@ -175,7 +175,7 @@ class FixedBillIntegrationTest {
 			"Casa da Ana"
 		));
 		String token = loginApi("fixed-bill-invalid-sub@local.invalid", "senha123");
-		Category category = requireCategory(owner.householdId(), "Casa");
+		Category category = requireCategory(owner.householdId(), "Moradia");
 
 		mockMvc.perform(post("/api/v1/fixed-bills")
 				.header("Authorization", bearer(token))
@@ -204,9 +204,9 @@ class FixedBillIntegrationTest {
 			"Casa da Ana"
 		));
 		String token = loginApi("fixed-bill-incompatible@local.invalid", "senha123");
-		Category category = requireCategory(owner.householdId(), "Casa");
-		Category otherCategory = requireCategory(owner.householdId(), "Geral");
-		Subcategory incompatibleSubcategory = requireSubcategory(owner.householdId(), otherCategory.getId(), "Primeiros lançamentos");
+		Category category = requireCategory(owner.householdId(), "Moradia");
+		Category otherCategory = requireCategory(owner.householdId(), "Alimentação");
+		Subcategory incompatibleSubcategory = requireSubcategory(owner.householdId(), otherCategory.getId(), "Mercado");
 
 		mockMvc.perform(post("/api/v1/fixed-bills")
 				.header("Authorization", bearer(token))
@@ -245,7 +245,7 @@ class FixedBillIntegrationTest {
 		String tokenAna = loginApi("fixed-bill-ref-ana@local.invalid", "senha123");
 		String tokenBruno = loginApi("fixed-bill-ref-bruno@local.invalid", "senha123");
 
-		Category category = requireCategory(ana.householdId(), "Casa");
+		Category category = requireCategory(ana.householdId(), "Moradia");
 		Subcategory subcategory = requireSubcategory(ana.householdId(), category.getId(), "Internet");
 
 		String referenceResponse = mockMvc.perform(post("/api/v1/space/references")
@@ -297,7 +297,7 @@ class FixedBillIntegrationTest {
 			"Casa da Ana"
 		));
 		String token = loginApi("fixed-bill-frequency@local.invalid", "senha123");
-		Category category = requireCategory(owner.householdId(), "Casa");
+		Category category = requireCategory(owner.householdId(), "Moradia");
 		Subcategory subcategory = requireSubcategory(owner.householdId(), category.getId(), "Internet");
 
 		mockMvc.perform(post("/api/v1/fixed-bills")

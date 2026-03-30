@@ -166,7 +166,7 @@ class OperationalEmailIngestionSecurityIntegrationTest {
 			  "subject":"Claro Internet março",
 			  "receivedAt":"2026-03-19T10:15:30Z",
 			  "merchantOrPayee":"Claro Internet",
-			  "suggestedCategoryName":"Casa",
+			  "suggestedCategoryName":"Moradia",
 			  "suggestedSubcategoryName":"Internet",
 			  "totalAmount":120.00,
 			  "dueDate":"2026-03-25",

@@ -105,8 +105,6 @@ class HouseholdAuthorizationIntegrationTest {
 	void deve_permitir_member_ler_catalogo_do_mesmo_household() throws Exception {
 		RegistrationResponse owner = registrationService.register(new RegistrationRequest("Ana", "owner-catalog-read@local.invalid", "senha123", "Casa Leitura"));
 		criarMembro(owner.householdId(), "Bia", "member-catalog-read@local.invalid", "senha123", HouseholdMemberRole.MEMBER);
-		Category category = categoryRepository.save(owner.householdId(), new Category(null, "Moradia", true));
-		subcategoryRepository.save(owner.householdId(), new Subcategory(null, category.getId(), "Internet", true));
 		String memberToken = loginApi("member-catalog-read@local.invalid", "senha123");
 
 		String response = mockMvc.perform(get("/api/v1/catalog/options")
