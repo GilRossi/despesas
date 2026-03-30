@@ -73,7 +73,6 @@ class HistoryImportApiControllerTest {
 					      "description":"Internet fevereiro",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":20
 					    },
@@ -81,7 +80,6 @@ class HistoryImportApiControllerTest {
 					      "description":"Aluguel fevereiro",
 					      "amount":1500.00,
 					      "date":"2026-02-05",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":21
 					    }
@@ -125,7 +123,6 @@ class HistoryImportApiControllerTest {
 					      "description":"",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":20
 					    }
@@ -148,7 +145,6 @@ class HistoryImportApiControllerTest {
 					      "description":"Internet fevereiro",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":20
 					    }
@@ -184,7 +180,6 @@ class HistoryImportApiControllerTest {
 					      "description":"Internet fevereiro",
 					      "amount":129.90,
 					      "date":"2026-02-10",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":20
 					    },
@@ -192,7 +187,6 @@ class HistoryImportApiControllerTest {
 					      "description":"Historico invalido",
 					      "amount":89.90,
 					      "date":"2026-02-11",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":999
 					    }

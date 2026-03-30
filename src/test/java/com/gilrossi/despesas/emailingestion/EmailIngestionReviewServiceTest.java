@@ -20,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,7 +58,6 @@ class EmailIngestionReviewServiceTest {
 			new BigDecimal("289.70"),
 			LocalDate.of(2026, 3, 19),
 			LocalDate.of(2026, 3, 19),
-			ExpenseContext.PETS,
 			null,
 			null,
 			null,

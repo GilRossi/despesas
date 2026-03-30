@@ -29,7 +29,6 @@ import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.emailingestion.EmailIngestionDecisionReason;
 import com.gilrossi.despesas.emailingestion.EmailIngestionFinalDecision;
 import com.gilrossi.despesas.emailingestion.EmailIngestionRecordRepository;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseRepository;
 import com.gilrossi.despesas.identity.RegistrationRequest;
 import com.gilrossi.despesas.identity.RegistrationResponse;
@@ -341,7 +340,6 @@ class EmailIngestionIntegrationTest {
 			.anySatisfy(expense -> {
 				org.assertj.core.api.Assertions.assertThat(expense.getCategoryId()).isEqualTo(pets.getId());
 				org.assertj.core.api.Assertions.assertThat(expense.getSubcategoryId()).isEqualTo(petShop.getId());
-				org.assertj.core.api.Assertions.assertThat(expense.getContext()).isEqualTo(ExpenseContext.PETS);
 			});
 		org.assertj.core.api.Assertions.assertThat(recordRepository.findAllByHouseholdId(owner.householdId()))
 			.anySatisfy(record -> org.assertj.core.api.Assertions.assertThat(record.items()).hasSize(3));

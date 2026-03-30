@@ -12,7 +12,6 @@ import com.gilrossi.despesas.catalog.category.CategoryRepository;
 import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryRepository;
 import com.gilrossi.despesas.expense.CreateExpenseRequest;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
 import com.gilrossi.despesas.expense.ExpenseService;
 
@@ -45,7 +44,6 @@ public class EmailIngestionExpenseImportService {
 			command.totalAmount(),
 			resolveOccurredOn(command),
 			resolveDueDate(command),
-			resolveContext(command, category.getName()),
 			category.getId(),
 			subcategory.getId(),
 			null,
@@ -73,30 +71,6 @@ public class EmailIngestionExpenseImportService {
 			EmailIngestionDecisionReason.SUBCATEGORY_REQUIRED,
 			"Auto import requires a resolvable subcategory"
 		);
-	}
-
-	private ExpenseContext resolveContext(ProcessEmailIngestionCommand command, String categoryName) {
-		String normalizedCategory = normalize(categoryName);
-		String normalizedMerchant = normalize(command.merchantOrPayee());
-		String normalizedSubject = normalize(command.subject());
-		if (command.classification() == EmailIngestionClassification.RECURRING_BILL) {
-			return ExpenseContext.CASA;
-		}
-		if (normalizedCategory.contains("pet") || normalizedMerchant.contains("pet") || normalizedMerchant.contains("cobasi")
-			|| normalizedSubject.contains("pet")) {
-			return ExpenseContext.PETS;
-		}
-		if (normalizedCategory.contains("casa") || normalizedMerchant.contains("internet") || normalizedMerchant.contains("energia")
-			|| normalizedMerchant.contains("luz") || normalizedMerchant.contains("gas") || normalizedMerchant.contains("celular")) {
-			return ExpenseContext.CASA;
-		}
-		if (normalizedMerchant.contains("uber") || normalizedSubject.contains("uber")) {
-			return ExpenseContext.UBER;
-		}
-		if (normalizedCategory.contains("veic") || normalizedMerchant.contains("combust") || normalizedMerchant.contains("posto")) {
-			return ExpenseContext.VEICULO;
-		}
-		return ExpenseContext.GERAL;
 	}
 
 	private LocalDate resolveDueDate(ProcessEmailIngestionCommand command) {

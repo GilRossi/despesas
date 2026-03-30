@@ -91,7 +91,6 @@ class ExpenseServiceTest {
 			new BigDecimal("120.00"),
 			LocalDate.now(),
 			LocalDate.now().plusDays(5),
-			ExpenseContext.CASA,
 			10L,
 			20L,
 			null,
@@ -103,6 +102,9 @@ class ExpenseServiceTest {
 		assertEquals(new ReferenceResponse(20L, "Internet"), response.subcategory());
 		assertEquals(ExpenseStatus.PREVISTA, response.status());
 		assertEquals(new BigDecimal("120.00"), response.remainingAmount());
+		ArgumentCaptor<Expense> expenseCaptor = ArgumentCaptor.forClass(Expense.class);
+		verify(expenseRepository).save(expenseCaptor.capture());
+		assertEquals(ExpenseContext.GERAL, expenseCaptor.getValue().getContext());
 	}
 
 	@Test
@@ -115,7 +117,6 @@ class ExpenseServiceTest {
 			new BigDecimal("120.00"),
 			LocalDate.now(),
 			LocalDate.now().plusDays(5),
-			ExpenseContext.CASA,
 			10L,
 			20L,
 			null,
@@ -207,7 +208,6 @@ class ExpenseServiceTest {
 				new BigDecimal("150.00"),
 				LocalDate.now(),
 				LocalDate.now().plusDays(2),
-				ExpenseContext.CASA,
 				10L,
 				20L,
 				null,
@@ -218,6 +218,7 @@ class ExpenseServiceTest {
 		assertEquals("Mercado atualizado", response.description());
 		assertEquals(new BigDecimal("150.00"), response.amount());
 		assertEquals(ExpenseStatus.PREVISTA, response.status());
+		assertEquals(ExpenseContext.GERAL, expense.getContext());
 	}
 
 	@Test
@@ -238,7 +239,6 @@ class ExpenseServiceTest {
 				new BigDecimal("60.00"),
 				LocalDate.now(),
 				LocalDate.now().plusDays(2),
-				ExpenseContext.CASA,
 				10L,
 				20L,
 				null,

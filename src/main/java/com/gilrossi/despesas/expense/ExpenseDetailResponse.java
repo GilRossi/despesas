@@ -14,7 +14,6 @@ public record ExpenseDetailResponse(
 	BigDecimal amount,
 	LocalDate dueDate,
 	LocalDate occurredOn,
-	ExpenseContext context,
 	ReferenceResponse category,
 	ReferenceResponse subcategory,
 	ReferenceResponse reference,

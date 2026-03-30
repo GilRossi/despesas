@@ -141,7 +141,6 @@ class SecurityIntegrationTest {
 					  "amount":129.90,
 					  "firstDueDate":"2026-04-10",
 					  "frequency":"MONTHLY",
-					  "context":"CASA",
 					  "categoryId":10,
 					  "subcategoryId":20
 					}
@@ -162,7 +161,6 @@ class SecurityIntegrationTest {
 					      "description":"Internet janeiro",
 					      "amount":129.90,
 					      "date":"2026-01-10",
-					      "context":"CASA",
 					      "categoryId":10,
 					      "subcategoryId":20
 					    }

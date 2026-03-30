@@ -24,7 +24,6 @@ import com.gilrossi.despesas.catalog.category.CategoryRepository;
 import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryRepository;
 import com.gilrossi.despesas.expense.CreateExpenseRequest;
-import com.gilrossi.despesas.expense.ExpenseContext;
 import com.gilrossi.despesas.expense.ExpenseResponse;
 import com.gilrossi.despesas.expense.ExpenseService;
 
@@ -57,7 +56,6 @@ class EmailIngestionExpenseImportServiceTest {
 			new BigDecimal("289.70"),
 			LocalDate.of(2026, 3, 19),
 			LocalDate.of(2026, 3, 19),
-			ExpenseContext.PETS,
 			null,
 			null,
 			null,
@@ -95,7 +93,6 @@ class EmailIngestionExpenseImportServiceTest {
 		ArgumentCaptor<CreateExpenseRequest> requestCaptor = ArgumentCaptor.forClass(CreateExpenseRequest.class);
 		verify(expenseService).criarParaHousehold(eq(7L), requestCaptor.capture());
 		CreateExpenseRequest request = requestCaptor.getValue();
-		org.assertj.core.api.Assertions.assertThat(request.context()).isEqualTo(ExpenseContext.PETS);
 		org.assertj.core.api.Assertions.assertThat(request.categoryId()).isEqualTo(20L);
 		org.assertj.core.api.Assertions.assertThat(request.subcategoryId()).isEqualTo(30L);
 		org.assertj.core.api.Assertions.assertThat(request.description()).isEqualTo("Cobasi");
