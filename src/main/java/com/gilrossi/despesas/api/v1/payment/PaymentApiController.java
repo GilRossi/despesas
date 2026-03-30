@@ -2,6 +2,7 @@ package com.gilrossi.despesas.api.v1.payment;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,5 +40,11 @@ public class PaymentApiController {
 	@PostMapping
 	public ResponseEntity<ApiResponse<PaymentResponse>> registrar(@Valid @RequestBody CreatePaymentRequest request) {
 		return ResponseEntity.status(201).body(new ApiResponse<>(this.paymentService.registrar(request)));
+	}
+
+	@DeleteMapping("/{paymentId}")
+	public ResponseEntity<Void> deletar(@PathVariable Long paymentId) {
+		paymentService.deletar(paymentId);
+		return ResponseEntity.noContent().build();
 	}
 }

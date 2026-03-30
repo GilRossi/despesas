@@ -69,14 +69,15 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 				or (:hasPayments = true and count(p) > 0)
 				or (:hasPayments = false and count(p) = 0))
 			and (:overdue is null
-				or (:overdue = true and e.dueDate < :today and coalesce(sum(p.amount), 0) < e.amount)
-				or (:overdue = false and not (e.dueDate < :today and coalesce(sum(p.amount), 0) < e.amount)))
+				or (:overdue = true and e.dueDate is not null and e.dueDate < :today and coalesce(sum(p.amount), 0) < e.amount)
+				or (:overdue = false and not (e.dueDate is not null and e.dueDate < :today and coalesce(sum(p.amount), 0) < e.amount)))
 			and (:status is null
 				or (:status = 'PAGA' and coalesce(sum(p.amount), 0) >= e.amount)
 				or (:status = 'PARCIALMENTE_PAGA' and coalesce(sum(p.amount), 0) > 0 and coalesce(sum(p.amount), 0) < e.amount)
 				or (:status = 'PREVISTA' and coalesce(sum(p.amount), 0) = 0 and e.dueDate > :today)
-				or (:status = 'ABERTA' and coalesce(sum(p.amount), 0) = 0 and e.dueDate = :today)
+				or (:status = 'ABERTA' and coalesce(sum(p.amount), 0) = 0 and (e.dueDate is null or e.dueDate = :today))
 				or (:status = 'VENCIDA' and coalesce(sum(p.amount), 0) = 0 and e.dueDate < :today))
+		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
 		""")
 	Page<Expense> findAllByFilters(
 		@Param("householdId") Long householdId,
@@ -117,7 +118,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 		from Expense e
 		where e.deletedAt is null
 			and e.householdId = :householdId
-		order by e.dueDate desc, e.id desc
+		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
 		""")
 	List<Expense> findAllByHouseholdId(@Param("householdId") Long householdId);
 
@@ -126,8 +127,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 		from Expense e
 		where e.deletedAt is null
 			and e.householdId = :householdId
-			and e.dueDate between :from and :to
-		order by e.dueDate desc, e.id desc
+			and e.occurredOn between :from and :to
+		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
 		""")
 	List<Expense> findAllByHouseholdIdAndDueDateBetween(
 		@Param("householdId") Long householdId,
@@ -140,8 +141,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 		from Expense e
 		where e.deletedAt is null
 			and e.householdId = :householdId
-			and e.dueDate >= :from
-		order by e.dueDate desc, e.id desc
+			and e.occurredOn >= :from
+		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
 		""")
 	List<Expense> findAllByHouseholdIdAndDueDateGreaterThanEqual(
 		@Param("householdId") Long householdId,

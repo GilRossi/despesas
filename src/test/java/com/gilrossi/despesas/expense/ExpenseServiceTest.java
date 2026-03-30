@@ -34,6 +34,7 @@ import com.gilrossi.despesas.payment.Payment;
 import com.gilrossi.despesas.payment.PaymentMethod;
 import com.gilrossi.despesas.payment.PaymentRepository;
 import com.gilrossi.despesas.security.CurrentHouseholdProvider;
+import com.gilrossi.despesas.spacereference.SpaceReferenceRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ExpenseServiceTest {
@@ -53,6 +54,9 @@ class ExpenseServiceTest {
 	@Mock
 	private CurrentHouseholdProvider currentHouseholdProvider;
 
+	@Mock
+	private SpaceReferenceRepository spaceReferenceRepository;
+
 	private ExpenseService service;
 
 	@BeforeEach
@@ -62,6 +66,7 @@ class ExpenseServiceTest {
 			paymentRepository,
 			categoryRepository,
 			subcategoryRepository,
+			spaceReferenceRepository,
 			currentHouseholdProvider,
 			new ExpenseStatusCalculator()
 		);
@@ -84,10 +89,12 @@ class ExpenseServiceTest {
 		ExpenseResponse response = service.criar(new CreateExpenseRequest(
 			"Internet da casa",
 			new BigDecimal("120.00"),
+			LocalDate.now(),
 			LocalDate.now().plusDays(5),
 			ExpenseContext.CASA,
 			10L,
 			20L,
+			null,
 			"Conta fixa"
 		));
 
@@ -106,10 +113,12 @@ class ExpenseServiceTest {
 		assertThrows(IllegalArgumentException.class, () -> service.criar(new CreateExpenseRequest(
 			"Internet da casa",
 			new BigDecimal("120.00"),
+			LocalDate.now(),
 			LocalDate.now().plusDays(5),
 			ExpenseContext.CASA,
 			10L,
 			20L,
+			null,
 			"Conta fixa"
 		)));
 	}
@@ -160,7 +169,7 @@ class ExpenseServiceTest {
 			org.mockito.ArgumentMatchers.isNull(),
 			pageableCaptor.capture()
 		);
-		assertEquals(Sort.by(Sort.Order.desc("dueDate"), Sort.Order.desc("id")), pageableCaptor.getValue().getSort());
+		assertEquals(Sort.unsorted(), pageableCaptor.getValue().getSort());
 	}
 
 	@Test
@@ -196,10 +205,12 @@ class ExpenseServiceTest {
 			new UpdateExpenseRequest(
 				"Mercado atualizado",
 				new BigDecimal("150.00"),
+				LocalDate.now(),
 				LocalDate.now().plusDays(2),
 				ExpenseContext.CASA,
 				10L,
 				20L,
+				null,
 				"Nova observacao"
 			)
 		);
@@ -225,10 +236,12 @@ class ExpenseServiceTest {
 			new UpdateExpenseRequest(
 				"Mercado atualizado",
 				new BigDecimal("60.00"),
+				LocalDate.now(),
 				LocalDate.now().plusDays(2),
 				ExpenseContext.CASA,
 				10L,
 				20L,
+				null,
 				"Nova observacao"
 			)
 		));

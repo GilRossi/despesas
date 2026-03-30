@@ -192,9 +192,11 @@ public class HistoryImportService {
 			entry.description(),
 			entry.amount(),
 			entry.date(),
+			entry.date(),
 			entry.context(),
 			entry.categoryId(),
 			entry.subcategoryId(),
+			null,
 			entry.notes()
 		));
 		PaymentResponse createdPayment = paymentService.registrar(new CreatePaymentRequest(

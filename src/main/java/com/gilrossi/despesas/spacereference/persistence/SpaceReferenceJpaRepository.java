@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.spacereference.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +13,11 @@ import com.gilrossi.despesas.spacereference.SpaceReferenceType;
 public interface SpaceReferenceJpaRepository extends JpaRepository<SpaceReferenceJpaEntity, Long> {
 
 	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdOrderByTypeAscNameAscIdAsc(Long householdId);
+
+	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdAndIdInOrderByNameAscIdAsc(
+		Long householdId,
+		Collection<Long> ids
+	);
 
 	List<SpaceReferenceJpaEntity> findAllByDeletedAtIsNullAndHouseholdIdAndTypeOrderByTypeAscNameAscIdAsc(
 		Long householdId,

@@ -43,10 +43,12 @@ public class EmailIngestionExpenseImportService {
 		return expenseService.criarParaHousehold(householdId, new CreateExpenseRequest(
 			buildDescription(command),
 			command.totalAmount(),
+			resolveOccurredOn(command),
 			resolveDueDate(command),
 			resolveContext(command, category.getName()),
 			category.getId(),
 			subcategory.getId(),
+			null,
 			buildNotes(sourceAccount, command)
 		));
 	}
@@ -101,8 +103,15 @@ public class EmailIngestionExpenseImportService {
 		if (command.dueDate() != null) {
 			return command.dueDate();
 		}
+		return null;
+	}
+
+	private LocalDate resolveOccurredOn(ProcessEmailIngestionCommand command) {
 		if (command.occurredOn() != null) {
 			return command.occurredOn();
+		}
+		if (command.dueDate() != null) {
+			return command.dueDate();
 		}
 		return command.receivedAt().toLocalDate();
 	}

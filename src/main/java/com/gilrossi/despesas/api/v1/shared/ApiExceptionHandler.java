@@ -23,6 +23,7 @@ import com.gilrossi.despesas.identity.AppUserNotFoundException;
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
+import com.gilrossi.despesas.payment.PaymentNotFoundException;
 import com.gilrossi.despesas.ratelimit.RateLimitExceededException;
 import com.gilrossi.despesas.security.SecurityAuditLogger;
 
@@ -78,6 +79,7 @@ public class ApiExceptionHandler {
 		SubcategoryNotFoundException.class,
 		ExpenseNotFoundException.class,
 		com.gilrossi.despesas.payment.ExpenseNotFoundException.class,
+		PaymentNotFoundException.class,
 		EmailIngestionReviewNotFoundException.class
 	})
 	public ResponseEntity<ApiErrorResponse> notFound(RuntimeException exception) {

@@ -15,6 +15,9 @@ public class ExpenseStatusCalculator {
 		if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
 			return ExpenseStatus.PARCIALMENTE_PAGA;
 		}
+		if (dueDate == null) {
+			return ExpenseStatus.ABERTA;
+		}
 		if (dueDate.isAfter(currentDate)) {
 			return ExpenseStatus.PREVISTA;
 		}

@@ -2,6 +2,7 @@ package com.gilrossi.despesas.payment;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
+
+	@Query("""
+		select p
+		from Payment p
+		where p.deletedAt is null
+			and p.id = :id
+		""")
+	Optional<Payment> findActiveById(@Param("id") Long id);
 
 	@Query("""
 		select p

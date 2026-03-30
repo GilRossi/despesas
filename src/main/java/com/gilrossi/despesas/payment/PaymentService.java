@@ -98,6 +98,17 @@ public class PaymentService {
 		);
 	}
 
+	@Transactional
+	public void deletar(Long paymentId) {
+		Payment payment = paymentRepository.findActiveById(paymentId)
+			.orElseThrow(() -> new PaymentNotFoundException(paymentId));
+		Long householdId = currentHouseholdProvider.requireHouseholdId();
+		expenseRepository.findByIdAndHouseholdIdForUpdate(payment.getExpenseId(), householdId)
+			.orElseThrow(() -> new ExpenseNotFoundException(payment.getExpenseId()));
+		payment.markDeleted();
+		paymentRepository.save(payment);
+	}
+
 	private BigDecimal sumAmounts(List<Payment> payments) {
 		return payments.stream()
 			.map(Payment::getAmount)

@@ -2,6 +2,7 @@ package com.gilrossi.despesas.expense;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,17 +28,20 @@ import com.gilrossi.despesas.payment.Payment;
 import com.gilrossi.despesas.payment.PaymentRepository;
 import com.gilrossi.despesas.payment.PaymentResponse;
 import com.gilrossi.despesas.security.CurrentHouseholdProvider;
+import com.gilrossi.despesas.spacereference.SpaceReference;
+import com.gilrossi.despesas.spacereference.SpaceReferenceRepository;
 
 @Service
 public class ExpenseService {
 
 	private static final int MAX_PAGE_SIZE = 50;
-	private static final Sort DEFAULT_LIST_SORT = Sort.by(Sort.Order.desc("dueDate"), Sort.Order.desc("id"));
+	private static final Sort DEFAULT_LIST_SORT = Sort.unsorted();
 
 	private final ExpenseRepository expenseRepository;
 	private final PaymentRepository paymentRepository;
 	private final CategoryRepository categoryRepository;
 	private final SubcategoryRepository subcategoryRepository;
+	private final SpaceReferenceRepository spaceReferenceRepository;
 	private final CurrentHouseholdProvider currentHouseholdProvider;
 	private final ExpenseStatusCalculator statusCalculator;
 
@@ -46,6 +50,7 @@ public class ExpenseService {
 		PaymentRepository paymentRepository,
 		CategoryRepository categoryRepository,
 		SubcategoryRepository subcategoryRepository,
+		SpaceReferenceRepository spaceReferenceRepository,
 		CurrentHouseholdProvider currentHouseholdProvider,
 		ExpenseStatusCalculator statusCalculator
 	) {
@@ -53,6 +58,7 @@ public class ExpenseService {
 		this.paymentRepository = paymentRepository;
 		this.categoryRepository = categoryRepository;
 		this.subcategoryRepository = subcategoryRepository;
+		this.spaceReferenceRepository = spaceReferenceRepository;
 		this.currentHouseholdProvider = currentHouseholdProvider;
 		this.statusCalculator = statusCalculator;
 	}
@@ -94,8 +100,18 @@ public class ExpenseService {
 			pageable
 		);
 		Map<Long, List<Payment>> paymentsByExpenseId = carregarPagamentos(expenses.getContent());
+		Map<Long, ReferenceResponse> referencesById = carregarReferencias(householdId, expenses.getContent());
 		List<ExpenseResponse> content = expenses.stream()
-			.map(expense -> toResponse(expense, paymentsByExpenseId.getOrDefault(expense.getId(), List.of())))
+			.map(expense -> {
+				ReferenceResponse reference = expense.getSpaceReferenceId() == null
+					? null
+					: referencesById.get(expense.getSpaceReferenceId());
+				return toResponse(
+					expense,
+					paymentsByExpenseId.getOrDefault(expense.getId(), List.of()),
+					reference
+				);
+			})
 			.toList();
 		return new PageResponse<>(
 			content,
@@ -119,20 +135,23 @@ public class ExpenseService {
 	public ExpenseResponse criarParaHousehold(Long householdId, CreateExpenseRequest request) {
 		Category category = requireCategory(householdId, request.categoryId());
 		Subcategory subcategory = requireSubcategory(householdId, request.subcategoryId(), category.getId());
+		SpaceReference reference = resolveSpaceReference(householdId, request.spaceReferenceId());
 		Expense expense = new Expense(
 			householdId,
 			normalizeRequired(request.description(), "description"),
 			requirePositive(request.amount(), "amount"),
-			requireDate(request.dueDate()),
+			requireOccurredOn(request.occurredOn()),
+			normalizeDueDate(request.dueDate()),
 			requireContext(request.context()),
 			category.getId(),
 			category.getName(),
 			subcategory.getId(),
 			subcategory.getName(),
-			normalizeOptional(request.notes())
+			normalizeOptional(request.notes()),
+			reference == null ? null : reference.getId()
 		);
 		Expense saved = expenseRepository.save(expense);
-		return toResponse(saved, paymentRepository.findByExpenseId(saved.getId()));
+		return toResponse(saved, paymentRepository.findByExpenseId(saved.getId()), toReference(reference));
 	}
 
 	@Transactional(readOnly = true)
@@ -140,7 +159,10 @@ public class ExpenseService {
 		Long householdId = currentHouseholdProvider.requireHouseholdId();
 		Expense expense = expenseRepository.findByIdAndHouseholdId(id, householdId)
 			.orElseThrow(() -> new ExpenseNotFoundException(id));
-		return toDetailResponse(expense, paymentRepository.findByExpenseId(expense.getId()));
+		ReferenceResponse reference = expense.getSpaceReferenceId() == null
+			? null
+			: toReference(spaceReferenceRepository.findById(householdId, expense.getSpaceReferenceId()).orElse(null));
+		return toDetailResponse(expense, paymentRepository.findByExpenseId(expense.getId()), reference);
 	}
 
 	@Transactional
@@ -150,21 +172,24 @@ public class ExpenseService {
 			.orElseThrow(() -> new ExpenseNotFoundException(id));
 		Category category = requireCategory(householdId, request.categoryId());
 		Subcategory subcategory = requireSubcategory(householdId, request.subcategoryId(), category.getId());
+		SpaceReference reference = resolveSpaceReference(householdId, request.spaceReferenceId());
 		List<Payment> existingPayments = paymentRepository.findByExpenseId(expense.getId());
 		BigDecimal updatedAmount = requirePositive(request.amount(), "amount");
 		validateAmountAgainstPaidAmount(updatedAmount, existingPayments);
 		expense.setDescription(normalizeRequired(request.description(), "description"));
 		expense.setAmount(updatedAmount);
-		expense.setDueDate(requireDate(request.dueDate()));
+		expense.setOccurredOn(requireOccurredOn(request.occurredOn()));
+		expense.setDueDate(normalizeDueDate(request.dueDate()));
 		expense.setContext(requireContext(request.context()));
 		expense.setCategoryId(category.getId());
 		expense.setCategoryNameSnapshot(category.getName());
 		expense.setSubcategoryId(subcategory.getId());
 		expense.setSubcategoryNameSnapshot(subcategory.getName());
+		expense.setSpaceReferenceId(reference == null ? null : reference.getId());
 		expense.setNotes(normalizeOptional(request.notes()));
 		expense.touch();
 		Expense saved = expenseRepository.save(expense);
-		return toDetailResponse(saved, existingPayments);
+		return toDetailResponse(saved, existingPayments, toReference(reference));
 	}
 
 	@Transactional
@@ -191,22 +216,42 @@ public class ExpenseService {
 			.collect(Collectors.groupingBy(Payment::getExpenseId, LinkedHashMap::new, Collectors.toList()));
 	}
 
+	private Map<Long, ReferenceResponse> carregarReferencias(Long householdId, Collection<Expense> expenses) {
+		List<Long> referenceIds = expenses.stream()
+			.map(Expense::getSpaceReferenceId)
+			.filter(id -> id != null)
+			.distinct()
+			.toList();
+		if (referenceIds.isEmpty()) {
+			return Map.of();
+		}
+		return spaceReferenceRepository.findAllByIds(householdId, referenceIds).stream()
+			.collect(Collectors.toMap(
+				SpaceReference::getId,
+				this::toReference,
+				(left, right) -> left,
+				LinkedHashMap::new
+			));
+	}
+
 	private PageRequest paginaRequest(int page, int size) {
 		int paginaNormalizada = Math.max(page, 0);
 		int tamanhoNormalizado = Math.max(1, Math.min(size, MAX_PAGE_SIZE));
 		return PageRequest.of(paginaNormalizada, tamanhoNormalizado, DEFAULT_LIST_SORT);
 	}
 
-	private ExpenseResponse toResponse(Expense expense, List<Payment> payments) {
+	private ExpenseResponse toResponse(Expense expense, List<Payment> payments, ReferenceResponse reference) {
 		ExpenseSnapshot snapshot = snapshot(expense, payments);
 		return new ExpenseResponse(
 			expense.getId(),
 			expense.getDescription(),
 			expense.getAmount(),
 			expense.getDueDate(),
+			expense.getOccurredOn(),
 			expense.getContext(),
 			new ReferenceResponse(expense.getCategoryId(), expense.getCategoryNameSnapshot()),
 			new ReferenceResponse(expense.getSubcategoryId(), expense.getSubcategoryNameSnapshot()),
+			reference,
 			expense.getNotes(),
 			snapshot.status(),
 			snapshot.paidAmount(),
@@ -218,16 +263,18 @@ public class ExpenseService {
 		);
 	}
 
-	private ExpenseDetailResponse toDetailResponse(Expense expense, List<Payment> payments) {
+	private ExpenseDetailResponse toDetailResponse(Expense expense, List<Payment> payments, ReferenceResponse reference) {
 		ExpenseSnapshot snapshot = snapshot(expense, payments);
 		return new ExpenseDetailResponse(
 			expense.getId(),
 			expense.getDescription(),
 			expense.getAmount(),
 			expense.getDueDate(),
+			expense.getOccurredOn(),
 			expense.getContext(),
 			new ReferenceResponse(expense.getCategoryId(), expense.getCategoryNameSnapshot()),
 			new ReferenceResponse(expense.getSubcategoryId(), expense.getSubcategoryNameSnapshot()),
+			reference,
 			expense.getNotes(),
 			snapshot.status(),
 			snapshot.paidAmount(),
@@ -297,6 +344,21 @@ public class ExpenseService {
 		return subcategory;
 	}
 
+	private SpaceReference resolveSpaceReference(Long householdId, Long spaceReferenceId) {
+		if (spaceReferenceId == null) {
+			return null;
+		}
+		return spaceReferenceRepository.findById(householdId, spaceReferenceId)
+			.orElseThrow(() -> new IllegalArgumentException("spaceReferenceId must belong to the active household"));
+	}
+
+	private ReferenceResponse toReference(SpaceReference reference) {
+		if (reference == null) {
+			return null;
+		}
+		return new ReferenceResponse(reference.getId(), reference.getName());
+	}
+
 	private String normalizeRequired(String value, String fieldName) {
 		String normalized = normalizeOptional(value);
 		if (!StringUtils.hasText(normalized)) {
@@ -316,10 +378,14 @@ public class ExpenseService {
 		return value;
 	}
 
-	private LocalDate requireDate(LocalDate dueDate) {
-		if (dueDate == null) {
-			throw new IllegalArgumentException("dueDate must not be null");
+	private LocalDate requireOccurredOn(LocalDate occurredOn) {
+		if (occurredOn == null) {
+			throw new IllegalArgumentException("occurredOn must not be null");
 		}
+		return occurredOn;
+	}
+
+	private LocalDate normalizeDueDate(LocalDate dueDate) {
 		return dueDate;
 	}
 
