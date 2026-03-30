@@ -100,10 +100,10 @@ class EmailIngestionExpenseImportServiceTest {
 
 	@Test
 	void deve_exigir_subcategoria_resolvivel_quando_categoria_tem_multiplas_opcoes() {
-		when(categoryRepository.findByNameIgnoreCase(7L, "Casa")).thenReturn(Optional.of(new Category(20L, "Casa", true)));
+		when(categoryRepository.findByNameIgnoreCase(7L, "Moradia")).thenReturn(Optional.of(new Category(20L, "Moradia", true)));
 		when(subcategoryRepository.findActiveByHouseholdId(7L)).thenReturn(List.of(
 			new Subcategory(30L, 20L, "Internet", true),
-			new Subcategory(31L, 20L, "Mercado", true)
+			new Subcategory(31L, 20L, "Energia", true)
 		));
 
 		assertThatThrownBy(() -> service.importExpense(7L, "financeiro@gmail.com", new ProcessEmailIngestionCommand(
@@ -113,7 +113,7 @@ class EmailIngestionExpenseImportServiceTest {
 			"Conta março",
 			OffsetDateTime.parse("2026-03-19T10:15:30Z"),
 			"Provedor",
-			"Casa",
+			"Moradia",
 			null,
 			new BigDecimal("120.00"),
 			LocalDate.of(2026, 3, 25),

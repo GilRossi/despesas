@@ -265,18 +265,18 @@ class FinancialAssistantIntegrationTest {
 
 		Category moradiaAna = categoryRepository.save(ana.householdId(), new Category(null, "Moradia", true));
 		subcategoryRepository.save(ana.householdId(), new Subcategory(null, moradiaAna.getId(), "Aluguel", true));
-		Category transporteBruno = categoryRepository.save(bruno.householdId(), new Category(null, "Transporte", true));
-		Subcategory combustivelBruno = subcategoryRepository.save(bruno.householdId(), new Subcategory(null, transporteBruno.getId(), "Combustível", true));
+		Category petsBruno = categoryRepository.save(bruno.householdId(), new Category(null, "Pets", true));
+		Subcategory veterinarioBruno = subcategoryRepository.save(bruno.householdId(), new Subcategory(null, petsBruno.getId(), "Veterinário", true));
 		expenseRepository.save(new Expense(
 			bruno.householdId(),
-			"Combustível março",
+			"Veterinário março",
 			new BigDecimal("300.00"),
 			LocalDate.of(2026, 3, 8),
-			ExpenseContext.VEICULO,
-			transporteBruno.getId(),
-			transporteBruno.getName(),
-			combustivelBruno.getId(),
-			combustivelBruno.getName(),
+			ExpenseContext.GERAL,
+			petsBruno.getId(),
+			petsBruno.getName(),
+			veterinarioBruno.getId(),
+			veterinarioBruno.getName(),
 			null
 		));
 
@@ -287,14 +287,14 @@ class FinancialAssistantIntegrationTest {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
-					  "question":"Quanto gastei com transporte?",
+					  "question":"Quanto gastei com pets?",
 					  "referenceMonth":"2026-03"
 					}
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.intent").value("UNKNOWN"))
 			.andExpect(jsonPath("$.data.answer").value("Nao consegui identificar uma intencao financeira especifica. Posso ajudar com resumo do mes, maiores gastos, comparacao entre meses, recorrencias ou economia."))
-			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Combustível março"))))
-			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Transporte"))));
+			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Veterinário março"))))
+			.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Pets"))));
 	}
 }

@@ -43,12 +43,8 @@ class CatalogOptionsIntegrationTest {
 		RegistrationResponse ana = registrationService.register(new RegistrationRequest("Ana", "ana-catalog@local.invalid", "senha123", "Casa Ana"));
 		RegistrationResponse bruno = registrationService.register(new RegistrationRequest("Bruno", "bruno-catalog@local.invalid", "senha123", "Casa Bruno"));
 
-		Category moradia = categoryRepository.save(ana.householdId(), new Category(null, "Moradia", true));
-		subcategoryRepository.save(ana.householdId(), new Subcategory(null, moradia.getId(), "Internet", true));
-		subcategoryRepository.save(ana.householdId(), new Subcategory(null, moradia.getId(), "Mercado", true));
-
-		Category lazer = categoryRepository.save(bruno.householdId(), new Category(null, "Lazer", true));
-		subcategoryRepository.save(bruno.householdId(), new Subcategory(null, lazer.getId(), "Cinema", true));
+		Category pets = categoryRepository.save(bruno.householdId(), new Category(null, "Pets", true));
+		subcategoryRepository.save(bruno.householdId(), new Subcategory(null, pets.getId(), "Pet shop", true));
 		String accessToken = loginApi("ana-catalog@local.invalid", "senha123");
 
 		String response = mockMvc.perform(get("/api/v1/catalog/options")
@@ -60,10 +56,14 @@ class CatalogOptionsIntegrationTest {
 
 		var data = objectMapper.readTree(response).path("data");
 		var moradiaNode = findCategory(data, "Moradia");
+		var servicosNode = findCategory(data, "Serviços e Assinaturas");
 		org.junit.jupiter.api.Assertions.assertNotNull(moradiaNode);
 		org.junit.jupiter.api.Assertions.assertTrue(hasSubcategory(moradiaNode.path("subcategories"), "Internet"));
-		org.junit.jupiter.api.Assertions.assertTrue(hasSubcategory(moradiaNode.path("subcategories"), "Mercado"));
-		org.junit.jupiter.api.Assertions.assertNull(findCategory(data, "Lazer"));
+		org.junit.jupiter.api.Assertions.assertNull(findCategory(data, "Geral"));
+		org.junit.jupiter.api.Assertions.assertNotNull(servicosNode);
+		org.junit.jupiter.api.Assertions.assertTrue(hasSubcategory(servicosNode.path("subcategories"), "Hospedagem"));
+		org.junit.jupiter.api.Assertions.assertTrue(hasSubcategory(servicosNode.path("subcategories"), "IA"));
+		org.junit.jupiter.api.Assertions.assertNull(findCategory(data, "Pets"));
 	}
 
 	private com.fasterxml.jackson.databind.JsonNode findCategory(com.fasterxml.jackson.databind.JsonNode categories, String name) {
