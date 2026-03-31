@@ -289,7 +289,7 @@ class FixedBillIntegrationTest {
 	}
 
 	@Test
-	void deve_rejeitar_frequency_diferente_de_monthly() throws Exception {
+	void deve_aceitar_frequency_weekly_no_mvp() throws Exception {
 		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
 			"Ana",
 			"fixed-bill-frequency@local.invalid",
@@ -313,9 +313,8 @@ class FixedBillIntegrationTest {
 					  "subcategoryId":%s
 					}
 					""".formatted(category.getId(), subcategory.getId())))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
-			.andExpect(jsonPath("$.message").value("Request payload is invalid"));
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.data.frequency").value("WEEKLY"));
 	}
 
 	private Category requireCategory(Long householdId, String name) {

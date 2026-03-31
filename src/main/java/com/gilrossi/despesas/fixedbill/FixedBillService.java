@@ -54,7 +54,7 @@ public class FixedBillService {
 			normalizeRequired(request.description(), "description"),
 			requirePositive(request.amount(), "amount"),
 			requireDate(request.firstDueDate()),
-			requireMonthly(request.frequency()),
+			requireSupportedFrequency(request.frequency()),
 			defaultContext(),
 			category.getId(),
 			category.getName(),
@@ -155,14 +155,14 @@ public class FixedBillService {
 		return value;
 	}
 
-	private FixedBillFrequency requireMonthly(FixedBillFrequency value) {
+	private FixedBillFrequency requireSupportedFrequency(FixedBillFrequency value) {
 		if (value == null) {
 			throw new IllegalArgumentException("frequency must not be null");
 		}
-		if (value != FixedBillFrequency.MONTHLY) {
+		if (value != FixedBillFrequency.MONTHLY && value != FixedBillFrequency.WEEKLY) {
 			throw new FieldBusinessRuleException(
 				"frequency",
-				"frequency must be MONTHLY in this release"
+				"frequency must be WEEKLY or MONTHLY in this release"
 			);
 		}
 		return value;

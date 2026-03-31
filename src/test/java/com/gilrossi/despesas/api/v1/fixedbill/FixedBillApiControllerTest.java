@@ -121,4 +121,36 @@ class FixedBillApiControllerTest {
 			.andExpect(jsonPath("$.code").value("BUSINESS_RULE"))
 			.andExpect(jsonPath("$.fieldErrors[0].field").value("subcategoryId"));
 	}
+
+	@Test
+	void deve_aceitar_payload_semanal_no_contrato() throws Exception {
+		when(fixedBillService.create(any(CreateFixedBillRequest.class))).thenReturn(new FixedBillResponse(
+			18L,
+			"Faxina",
+			new BigDecimal("90.00"),
+			LocalDate.of(2026, 4, 3),
+			FixedBillFrequency.WEEKLY,
+			new ReferenceResponse(10L, "Moradia"),
+			new ReferenceResponse(21L, "Condomínio"),
+			null,
+			true,
+			Instant.parse("2026-03-30T12:00:00Z")
+		));
+
+		mockMvc.perform(post("/api/v1/fixed-bills")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "description":"Faxina",
+					  "amount":90.00,
+					  "firstDueDate":"2026-04-03",
+					  "frequency":"WEEKLY",
+					  "categoryId":10,
+					  "subcategoryId":21
+					}
+					"""))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.data.id").value(18))
+			.andExpect(jsonPath("$.data.frequency").value("WEEKLY"));
+	}
 }
