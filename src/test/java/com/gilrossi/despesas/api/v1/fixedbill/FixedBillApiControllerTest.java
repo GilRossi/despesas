@@ -2,6 +2,7 @@ package com.gilrossi.despesas.api.v1.fixedbill;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +77,31 @@ class FixedBillApiControllerTest {
 			.andExpect(jsonPath("$.data.spaceReference.id").value(30))
 			.andExpect(jsonPath("$.data.active").value(true))
 			.andExpect(jsonPath("$.data.createdAt").value("2026-03-28T12:00:00Z"));
+	}
+
+	@Test
+	void deve_listar_contas_fixas_ativas() throws Exception {
+		when(fixedBillService.listActive()).thenReturn(List.of(
+			new FixedBillResponse(
+				15L,
+				"Internet fibra",
+				new BigDecimal("129.90"),
+				LocalDate.of(2026, 4, 10),
+				FixedBillFrequency.MONTHLY,
+				new ReferenceResponse(10L, "Moradia"),
+				new ReferenceResponse(20L, "Internet"),
+				new ReferenceResponse(30L, "Apartamento Centro"),
+				true,
+				Instant.parse("2026-03-28T12:00:00Z")
+			)
+		));
+
+		mockMvc.perform(get("/api/v1/fixed-bills"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data[0].id").value(15))
+			.andExpect(jsonPath("$.data[0].description").value("Internet fibra"))
+			.andExpect(jsonPath("$.data[0].frequency").value("MONTHLY"))
+			.andExpect(jsonPath("$.data[0].spaceReference.name").value("Apartamento Centro"));
 	}
 
 	@Test

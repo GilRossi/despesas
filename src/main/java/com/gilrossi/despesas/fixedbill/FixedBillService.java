@@ -1,7 +1,11 @@
 package com.gilrossi.despesas.fixedbill;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import java.time.LocalDate;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +68,23 @@ public class FixedBillService {
 		);
 		FixedBill saved = fixedBillRepository.save(fixedBill);
 		return toResponse(saved, spaceReference);
+	}
+
+	@Transactional(readOnly = true)
+	public List<FixedBillResponse> listActive() {
+		Long householdId = currentHouseholdProvider.requireHouseholdId();
+		List<FixedBill> fixedBills =
+			fixedBillRepository.findAllByHouseholdIdAndActiveTrueOrderByCreatedAtDescIdDesc(householdId);
+		Map<Long, SpaceReference> referencesById = spaceReferenceRepository.findAllByIds(
+			householdId,
+			fixedBills.stream()
+				.map(FixedBill::getSpaceReferenceId)
+				.filter(id -> id != null)
+				.toList()
+		).stream().collect(Collectors.toMap(SpaceReference::getId, Function.identity()));
+		return fixedBills.stream()
+			.map(fixedBill -> toResponse(fixedBill, referencesById.get(fixedBill.getSpaceReferenceId())))
+			.toList();
 	}
 
 	private Category requireCategory(Long householdId, Long categoryId) {
