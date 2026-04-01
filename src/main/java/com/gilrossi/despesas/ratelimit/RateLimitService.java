@@ -34,6 +34,11 @@ public class RateLimitService {
 		enforce(scope, normalize(scopeKey), maxRequests, windowSeconds, windowStart, windowEnd, now, true);
 	}
 
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void reset(RateLimitScope scope, String scopeKey) {
+		repository.deleteByScopeAndScopeKey(scope.name(), normalize(scopeKey));
+	}
+
 	private void enforce(
 		RateLimitScope scope,
 		String scopeKey,

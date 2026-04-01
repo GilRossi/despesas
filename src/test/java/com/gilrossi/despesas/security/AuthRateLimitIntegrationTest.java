@@ -58,10 +58,10 @@ class AuthRateLimitIntegrationTest {
 	void deve_limitar_tentativas_de_login_e_persistir_evento_de_abuso() throws Exception {
 		registrationService.register(new RegistrationRequest("Ana", "auth-rate-login@local.invalid", "senha123", "Casa Login"));
 
-		login("auth-rate-login@local.invalid", "senha123")
-			.andExpect(status().isOk());
+		login("auth-rate-login@local.invalid", "senha-errada")
+			.andExpect(status().isUnauthorized());
 
-		login("auth-rate-login@local.invalid", "senha123")
+		login("auth-rate-login@local.invalid", "senha-errada")
 			.andExpect(status().isTooManyRequests())
 			.andExpect(header().exists("Retry-After"))
 			.andExpect(jsonPath("$.code").value("RATE_LIMITED"));
@@ -73,6 +73,29 @@ class AuthRateLimitIntegrationTest {
 				assertThat(event.getPrimaryReference()).contains("@local.invalid").doesNotContain("auth-rate-login@local.invalid");
 				assertThat(event.getSafeContextJson()).doesNotContain("senha123");
 			});
+	}
+
+	@Test
+	void deve_permitir_ciclo_login_logout_login_sem_consumir_limite_de_auth() throws Exception {
+		registrationService.register(new RegistrationRequest("Bia", "auth-rate-cycle@local.invalid", "senha123", "Casa Cycle"));
+
+		JsonNode firstLogin = responseTree(login("auth-rate-cycle@local.invalid", "senha123")
+			.andExpect(status().isOk()));
+		String accessToken = firstLogin.path("data").path("accessToken").asText();
+		String refreshToken = firstLogin.path("data").path("refreshToken").asText();
+
+		mockMvc.perform(post("/api/v1/auth/logout")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "refreshToken":"%s"
+					}
+					""".formatted(refreshToken)))
+			.andExpect(status().isNoContent());
+
+		login("auth-rate-cycle@local.invalid", "senha123")
+			.andExpect(status().isOk());
 	}
 
 	@Test
