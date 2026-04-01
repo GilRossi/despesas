@@ -312,16 +312,19 @@ class ExpenseServiceTest {
 	}
 
 	@Test
-	void deve_rejeitar_exclusao_quando_despesa_possuir_pagamentos() {
+	void deve_excluir_despesa_e_inativar_pagamentos_vinculados() {
 		Expense expense = novaExpense(14L, "Mercado", "100.00", LocalDate.now(), ExpenseContext.CASA, 10L, 20L);
+		Payment payment = novaPayment(1L, 14L, "40.00", PaymentMethod.PIX);
 		when(expenseRepository.findByIdAndHouseholdIdForUpdate(14L, 7L)).thenReturn(Optional.of(expense));
-		when(paymentRepository.findByExpenseId(14L)).thenReturn(List.of(
-			novaPayment(1L, 14L, "40.00", PaymentMethod.PIX)
-		));
+		when(paymentRepository.findByExpenseId(14L)).thenReturn(List.of(payment));
+		when(expenseRepository.save(any(Expense.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> service.deletar(14L));
+		service.deletar(14L);
 
-		assertEquals("Expense with payments cannot be deleted", exception.getMessage());
+		assertNotNull(expense.getDeletedAt());
+		assertNotNull(payment.getDeletedAt());
+		verify(paymentRepository).saveAll(List.of(payment));
+		verify(expenseRepository).save(expense);
 	}
 
 	private Expense novaExpense(Long id, String descricao, String valor, LocalDate vencimento, ExpenseContext context, Long categoryId, Long subcategoryId) {

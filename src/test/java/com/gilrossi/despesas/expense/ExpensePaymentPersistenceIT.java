@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.expense;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ import com.gilrossi.despesas.catalog.subcategory.JpaSubcategoryRepositoryAdapter
 import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.payment.CreatePaymentRequest;
 import com.gilrossi.despesas.payment.PaymentMethod;
+import com.gilrossi.despesas.payment.PaymentRepository;
 import com.gilrossi.despesas.payment.PaymentResponse;
 import com.gilrossi.despesas.payment.PaymentService;
 import com.gilrossi.despesas.security.CurrentHouseholdProvider;
@@ -35,6 +37,9 @@ public class ExpensePaymentPersistenceIT {
 
 	@Autowired
 	private PaymentService paymentService;
+
+	@Autowired
+	private PaymentRepository paymentRepository;
 
 	@Autowired
 	private JpaCategoryRepositoryAdapter categoryRepository;
@@ -124,5 +129,40 @@ public class ExpensePaymentPersistenceIT {
 		assertThat(detalhada.remainingAmount()).isEqualByComparingTo("80.00");
 		assertThat(detalhada.paymentsCount()).isEqualTo(1);
 		assertThat(detalhada.status()).isEqualTo(ExpenseStatus.PARCIALMENTE_PAGA);
+	}
+
+	@Test
+	void deve_excluir_despesa_paga_e_inativar_pagamentos_vinculados() {
+		when(currentHouseholdProvider.requireHouseholdId()).thenReturn(HOUSEHOLD_ID);
+		jdbcTemplate.execute("delete from payments");
+		jdbcTemplate.execute("delete from expenses");
+		jdbcTemplate.execute("delete from subcategories");
+		jdbcTemplate.execute("delete from categories");
+		Category category = categoryRepository.save(HOUSEHOLD_ID, new Category(null, "Moradia", true));
+		Subcategory subcategory = subcategoryRepository.save(HOUSEHOLD_ID, new Subcategory(null, category.getId(), "Internet", true));
+
+		ExpenseResponse expense = expenseService.criar(new CreateExpenseRequest(
+			"Internet da casa",
+			new BigDecimal("120.00"),
+			LocalDate.now().minusDays(1),
+			LocalDate.now().plusDays(2),
+			category.getId(),
+			subcategory.getId(),
+			null,
+			"Conta mensal",
+			new CreateExpenseInitialPaymentRequest(LocalDate.now(), PaymentMethod.PIX)
+		));
+
+		expenseService.deletar(expense.id());
+
+		assertThatThrownBy(() -> expenseService.detalhar(expense.id()))
+			.isInstanceOf(ExpenseNotFoundException.class);
+		assertThat(paymentRepository.findByExpenseId(expense.id())).isEmpty();
+		Integer deletedPayments = jdbcTemplate.queryForObject(
+			"select count(*) from payments where expense_id = ? and deleted_at is not null",
+			Integer.class,
+			expense.id()
+		);
+		assertThat(deletedPayments).isEqualTo(1);
 	}
 }
