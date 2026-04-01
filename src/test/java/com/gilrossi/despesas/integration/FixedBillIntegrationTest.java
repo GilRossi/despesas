@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -315,6 +316,69 @@ class FixedBillIntegrationTest {
 					""".formatted(category.getId(), subcategory.getId())))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.data.frequency").value("WEEKLY"));
+	}
+
+	@Test
+	void deve_listar_contas_fixas_ativas_do_household_ordenadas_por_recencia() throws Exception {
+		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
+			"Ana",
+			"fixed-bill-list@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+		String token = loginApi("fixed-bill-list@local.invalid", "senha123");
+
+		FixedBill older = fixedBillRepository.save(new FixedBill(
+			owner.householdId(),
+			"Internet fibra",
+			new BigDecimal("129.90"),
+			LocalDate.of(2026, 4, 10),
+			FixedBillFrequency.MONTHLY,
+			ExpenseContext.GERAL,
+			10L,
+			"Moradia",
+			20L,
+			"Internet",
+			null
+		));
+		FixedBill newer = fixedBillRepository.save(new FixedBill(
+			owner.householdId(),
+			"Faxina semanal",
+			new BigDecimal("90.00"),
+			LocalDate.of(2026, 4, 3),
+			FixedBillFrequency.WEEKLY,
+			ExpenseContext.GERAL,
+			10L,
+			"Moradia",
+			21L,
+			"Condominio",
+			null
+		));
+		FixedBill inactive = fixedBillRepository.save(new FixedBill(
+			owner.householdId(),
+			"Conta antiga",
+			new BigDecimal("50.00"),
+			LocalDate.of(2026, 4, 1),
+			FixedBillFrequency.MONTHLY,
+			ExpenseContext.GERAL,
+			10L,
+			"Moradia",
+			20L,
+			"Internet",
+			null
+		));
+		inactive.setActive(false);
+		fixedBillRepository.save(inactive);
+
+		mockMvc.perform(get("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.length()").value(2))
+			.andExpect(jsonPath("$.data[0].id").value(newer.getId()))
+			.andExpect(jsonPath("$.data[0].description").value("Faxina semanal"))
+			.andExpect(jsonPath("$.data[0].frequency").value("WEEKLY"))
+			.andExpect(jsonPath("$.data[1].id").value(older.getId()))
+			.andExpect(jsonPath("$.data[1].description").value("Internet fibra"));
 	}
 
 	private Category requireCategory(Long householdId, String name) {
