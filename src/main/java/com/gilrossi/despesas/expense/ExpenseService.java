@@ -200,7 +200,8 @@ public class ExpenseService {
 			.orElseThrow(() -> new ExpenseNotFoundException(id));
 		List<Payment> existingPayments = paymentRepository.findByExpenseId(expense.getId());
 		if (!existingPayments.isEmpty()) {
-			throw new IllegalArgumentException("Expense with payments cannot be deleted");
+			existingPayments.forEach(Payment::markDeleted);
+			paymentRepository.saveAll(existingPayments);
 		}
 		expense.markDeleted();
 		expenseRepository.save(expense);
