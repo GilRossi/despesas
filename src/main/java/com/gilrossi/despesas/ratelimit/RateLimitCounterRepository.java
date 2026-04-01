@@ -33,4 +33,15 @@ public interface RateLimitCounterRepository extends JpaRepository<RateLimitCount
 		where counter.windowEnd <= :now
 		""")
 	int deleteExpiredBefore(@Param("now") Instant now);
+
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("""
+		delete from RateLimitCounter counter
+		where counter.scope = :scope
+		  and counter.scopeKey = :scopeKey
+		""")
+	int deleteByScopeAndScopeKey(
+		@Param("scope") String scope,
+		@Param("scopeKey") String scopeKey
+	);
 }

@@ -77,6 +77,7 @@ class UserDashboardIntegrationTest {
 
 	@Test
 	void deve_retornar_dashboard_completo_para_owner() throws Exception {
+		LocalDate hoje = LocalDate.now();
 		RegistrationResponse owner = registrationService.register(new RegistrationRequest("Ana", "owner-dashboard-v2@local.invalid", "senha123", "Casa Dashboard"));
 		Category moradia = categoryRepository.save(owner.householdId(), new Category(null, "Moradia", true));
 		Category transporte = categoryRepository.save(owner.householdId(), new Category(null, "Transporte", true));
@@ -88,7 +89,7 @@ class UserDashboardIntegrationTest {
 			owner.householdId(),
 			"Internet",
 			new BigDecimal("120.00"),
-			LocalDate.now().minusDays(2),
+			hoje.minusDays(2),
 			ExpenseContext.CASA,
 			moradia.getId(),
 			moradia.getName(),
@@ -100,7 +101,7 @@ class UserDashboardIntegrationTest {
 			owner.householdId(),
 			"Aluguel",
 			new BigDecimal("800.00"),
-			LocalDate.now(),
+			hoje,
 			ExpenseContext.CASA,
 			moradia.getId(),
 			moradia.getName(),
@@ -112,7 +113,7 @@ class UserDashboardIntegrationTest {
 			owner.householdId(),
 			"Combustível",
 			new BigDecimal("200.00"),
-			LocalDate.now().plusDays(5),
+			hoje.plusDays(5),
 			ExpenseContext.VEICULO,
 			transporte.getId(),
 			transporte.getName(),
@@ -124,7 +125,7 @@ class UserDashboardIntegrationTest {
 			owner.householdId(),
 			"Mercado anterior",
 			new BigDecimal("300.00"),
-			LocalDate.now().minusMonths(1).withDayOfMonth(10),
+			hoje.minusMonths(1).withDayOfMonth(10),
 			ExpenseContext.CASA,
 			moradia.getId(),
 			moradia.getName(),
@@ -155,10 +156,20 @@ class UserDashboardIntegrationTest {
 		paymentRepository.save(new Payment(
 			despesaMesAnterior.getId(),
 			new BigDecimal("300.00"),
-			LocalDate.now().minusMonths(1).withDayOfMonth(12),
+			hoje.minusMonths(1).withDayOfMonth(12),
 			PaymentMethod.PIX,
 			"Quitado"
 		));
+
+		BigDecimal monthOverviewTotal = new BigDecimal("800.00");
+		if (mesAtual(vencida.getDueDate(), hoje)) {
+			monthOverviewTotal = monthOverviewTotal.add(new BigDecimal("120.00"));
+		}
+		if (mesAtual(combustivelAtual.getDueDate(), hoje)) {
+			monthOverviewTotal = monthOverviewTotal.add(new BigDecimal("200.00"));
+		}
+		BigDecimal monthOverviewRemaining = monthOverviewTotal.subtract(new BigDecimal("500.00"));
+		int categorySpendingItems = mesAtual(combustivelAtual.getDueDate(), hoje) ? 2 : 1;
 
 		mockMvc.perform(post("/api/v1/space/references")
 				.header("Authorization", bearer(loginApi("owner-dashboard-v2@local.invalid", "senha123")))
@@ -192,17 +203,21 @@ class UserDashboardIntegrationTest {
 			.andExpect(jsonPath("$.data.recentActivity.items[0].type").value("PAYMENT_RECORDED"))
 			.andExpect(jsonPath("$.data.assistantCard.route").value("/assistant"))
 			.andExpect(jsonPath("$.data.monthOverview.referenceMonth").exists())
-			.andExpect(jsonPath("$.data.monthOverview.totalAmount").value(920.00))
+			.andExpect(jsonPath("$.data.monthOverview.totalAmount").value(monthOverviewTotal.doubleValue()))
 			.andExpect(jsonPath("$.data.monthOverview.paidAmount").value(500.00))
-			.andExpect(jsonPath("$.data.monthOverview.remainingAmount").value(420.00))
+			.andExpect(jsonPath("$.data.monthOverview.remainingAmount").value(monthOverviewRemaining.doubleValue()))
 			.andExpect(jsonPath("$.data.monthOverview.highestSpendingCategory.categoryName").value("Moradia"))
-			.andExpect(jsonPath("$.data.categorySpending.items.length()").value(1))
+			.andExpect(jsonPath("$.data.categorySpending.items.length()").value(categorySpendingItems))
 			.andExpect(jsonPath("$.data.householdSummary.membersCount").value(2))
 			.andExpect(jsonPath("$.data.householdSummary.ownersCount").value(1))
 			.andExpect(jsonPath("$.data.householdSummary.membersOnlyCount").value(1))
 			.andExpect(jsonPath("$.data.householdSummary.spaceReferencesCount").value(1))
 			.andExpect(jsonPath("$.data.householdSummary.referencesByGroup[0].group").value("RESIDENCIAL"))
 			.andExpect(jsonPath("$.data.quickActions").doesNotExist());
+	}
+
+	private boolean mesAtual(LocalDate date, LocalDate hoje) {
+		return date.getYear() == hoje.getYear() && date.getMonth() == hoje.getMonth();
 	}
 
 	@Test

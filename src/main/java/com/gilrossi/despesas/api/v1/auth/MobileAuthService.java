@@ -4,6 +4,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 
 import com.gilrossi.despesas.identity.AppUser;
@@ -56,18 +57,23 @@ public class MobileAuthService {
 
 	public MobileAuthResponse login(LoginRequest request) {
 		try {
-			abuseProtectionService.checkAuthLogin(request.email());
-		} catch (RateLimitExceededException exception) {
-			securityAuditLogger.loginRateLimited(request.email(), exception);
+			Authentication authentication = authenticationManager.authenticate(
+				UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password())
+			);
+			if (!(authentication.getPrincipal() instanceof AuthenticatedHouseholdUser principal)) {
+				throw new BadCredentialsException("Authentication failed");
+			}
+			abuseProtectionService.clearAuthLoginFailures(request.email());
+			return responseFor(principal, refreshTokenService.issueFor(principal));
+		} catch (AuthenticationException exception) {
+			try {
+				abuseProtectionService.registerAuthLoginFailure(request.email());
+			} catch (RateLimitExceededException rateLimitException) {
+				securityAuditLogger.loginRateLimited(request.email(), rateLimitException);
+				throw rateLimitException;
+			}
 			throw exception;
 		}
-		Authentication authentication = authenticationManager.authenticate(
-			UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password())
-		);
-		if (!(authentication.getPrincipal() instanceof AuthenticatedHouseholdUser principal)) {
-			throw new BadCredentialsException("Authentication failed");
-		}
-		return responseFor(principal, refreshTokenService.issueFor(principal));
 	}
 
 	public MobileAuthResponse refresh(RefreshTokenRequest request) {

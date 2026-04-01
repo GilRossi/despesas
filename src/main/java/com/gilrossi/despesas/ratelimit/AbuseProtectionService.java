@@ -24,6 +24,14 @@ public class AbuseProtectionService {
 		enforce(RateLimitScope.AUTH_LOGIN, fingerprint(email), properties.getAuthLogin());
 	}
 
+	public void registerAuthLoginFailure(String email) {
+		enforce(RateLimitScope.AUTH_LOGIN, fingerprint(email), properties.getAuthLogin());
+	}
+
+	public void clearAuthLoginFailures(String email) {
+		rateLimitService.reset(RateLimitScope.AUTH_LOGIN, fingerprint(email));
+	}
+
 	public void checkAuthRefresh(Long userId, String familyId) {
 		String key = userId == null ? fingerprint(familyId) : userId + ":" + normalize(familyId);
 		enforce(RateLimitScope.AUTH_REFRESH, key, properties.getAuthRefresh());
