@@ -1,7 +1,9 @@
 package com.gilrossi.despesas.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -21,7 +23,9 @@ import com.gilrossi.despesas.catalog.category.Category;
 import com.gilrossi.despesas.catalog.category.CategoryRepository;
 import com.gilrossi.despesas.catalog.subcategory.Subcategory;
 import com.gilrossi.despesas.catalog.subcategory.SubcategoryRepository;
+import com.gilrossi.despesas.expense.Expense;
 import com.gilrossi.despesas.expense.ExpenseContext;
+import com.gilrossi.despesas.expense.ExpenseRepository;
 import com.gilrossi.despesas.fixedbill.FixedBill;
 import com.gilrossi.despesas.fixedbill.FixedBillFrequency;
 import com.gilrossi.despesas.fixedbill.FixedBillRepository;
@@ -50,6 +54,9 @@ class FixedBillIntegrationTest {
 
 	@Autowired
 	private FixedBillRepository fixedBillRepository;
+
+	@Autowired
+	private ExpenseRepository expenseRepository;
 
 	@Test
 	void deve_criar_conta_fixa_com_referencia_opcional_valida_e_persistir_no_household_correto() throws Exception {
@@ -377,8 +384,144 @@ class FixedBillIntegrationTest {
 			.andExpect(jsonPath("$.data[0].id").value(newer.getId()))
 			.andExpect(jsonPath("$.data[0].description").value("Faxina semanal"))
 			.andExpect(jsonPath("$.data[0].frequency").value("WEEKLY"))
+			.andExpect(jsonPath("$.data[0].nextDueDate").value("2026-04-03"))
 			.andExpect(jsonPath("$.data[1].id").value(older.getId()))
-			.andExpect(jsonPath("$.data[1].description").value("Internet fibra"));
+			.andExpect(jsonPath("$.data[1].description").value("Internet fibra"))
+			.andExpect(jsonPath("$.data[1].nextDueDate").value("2026-04-10"));
+	}
+
+	@Test
+	void deve_lancar_a_proxima_despesa_operacional_a_partir_da_regra() throws Exception {
+		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
+			"Ana",
+			"fixed-bill-launch@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+		String token = loginApi("fixed-bill-launch@local.invalid", "senha123");
+
+		Category category = requireCategory(owner.householdId(), "Moradia");
+		Subcategory subcategory = requireSubcategory(owner.householdId(), category.getId(), "Internet");
+
+		String createResponse = mockMvc.perform(post("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token))
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Internet fibra",
+					  "amount":129.90,
+					  "firstDueDate":"2026-04-10",
+					  "frequency":"MONTHLY",
+					  "categoryId":%s,
+					  "subcategoryId":%s
+					}
+					""".formatted(category.getId(), subcategory.getId())))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		long fixedBillId = objectMapper.readTree(createResponse).path("data").path("id").asLong();
+
+		String launchResponse = mockMvc.perform(post("/api/v1/fixed-bills/%s/launch-expense".formatted(fixedBillId))
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.data.description").value("Internet fibra"))
+			.andExpect(jsonPath("$.data.dueDate").value("2026-04-10"))
+			.andExpect(jsonPath("$.data.status").value("PREVISTA"))
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		long expenseId = objectMapper.readTree(launchResponse).path("data").path("id").asLong();
+		Expense persistedExpense = expenseRepository.findById(expenseId).orElseThrow();
+
+		assertThat(persistedExpense.getFixedBillId()).isEqualTo(fixedBillId);
+		assertThat(persistedExpense.getDescription()).isEqualTo("Internet fibra");
+
+		mockMvc.perform(get("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data[0].lastGeneratedExpense.expenseId").value(expenseId))
+			.andExpect(jsonPath("$.data[0].nextDueDate").value("2026-05-10"));
+	}
+
+	@Test
+	void deve_atualizar_e_excluir_regra_sem_apagar_despesas_ja_geradas() throws Exception {
+		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
+			"Ana",
+			"fixed-bill-update@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+		String token = loginApi("fixed-bill-update@local.invalid", "senha123");
+
+		Category category = requireCategory(owner.householdId(), "Moradia");
+		Subcategory internet = requireSubcategory(owner.householdId(), category.getId(), "Internet");
+		Subcategory replacement = subcategoryRepository.findActiveByHouseholdId(owner.householdId()).stream()
+			.filter(subcategory -> subcategory.getCategoryId().equals(category.getId()))
+			.filter(subcategory -> !subcategory.getId().equals(internet.getId()))
+			.findFirst()
+			.orElseThrow();
+
+		String createResponse = mockMvc.perform(post("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token))
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Internet fibra",
+					  "amount":129.90,
+					  "firstDueDate":"2026-04-10",
+					  "frequency":"MONTHLY",
+					  "categoryId":%s,
+					  "subcategoryId":%s
+					}
+					""".formatted(category.getId(), internet.getId())))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		long fixedBillId = objectMapper.readTree(createResponse).path("data").path("id").asLong();
+
+		String launchedExpense = mockMvc.perform(post("/api/v1/fixed-bills/%s/launch-expense".formatted(fixedBillId))
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		long expenseId = objectMapper.readTree(launchedExpense).path("data").path("id").asLong();
+
+		mockMvc.perform(patch("/api/v1/fixed-bills/%s".formatted(fixedBillId))
+				.header("Authorization", bearer(token))
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Internet premium",
+					  "amount":159.90,
+					  "firstDueDate":"2026-04-10",
+					  "frequency":"WEEKLY",
+					  "categoryId":%s,
+					  "subcategoryId":%s
+					}
+					""".formatted(category.getId(), replacement.getId())))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.description").value("Internet premium"))
+			.andExpect(jsonPath("$.data.frequency").value("WEEKLY"))
+			.andExpect(jsonPath("$.data.nextDueDate").value("2026-04-17"));
+
+		mockMvc.perform(delete("/api/v1/fixed-bills/%s".formatted(fixedBillId))
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isNoContent());
+
+		assertThat(fixedBillRepository.findById(fixedBillId).orElseThrow().isActive()).isFalse();
+		assertThat(expenseRepository.findById(expenseId).orElseThrow().getDeletedAt()).isNull();
+
+		mockMvc.perform(get("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.length()").value(0));
 	}
 
 	private Category requireCategory(Long householdId, String name) {

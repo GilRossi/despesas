@@ -61,6 +61,9 @@ public class Expense {
 	@Column(name = "space_reference_id")
 	private Long spaceReferenceId;
 
+	@Column(name = "fixed_bill_id")
+	private Long fixedBillId;
+
 	@Transient
 	private ExpenseStatus status;
 
@@ -292,6 +295,14 @@ public class Expense {
 
 	public void setSpaceReferenceId(Long spaceReferenceId) {
 		this.spaceReferenceId = spaceReferenceId;
+	}
+
+	public Long getFixedBillId() {
+		return fixedBillId;
+	}
+
+	public void setFixedBillId(Long fixedBillId) {
+		this.fixedBillId = fixedBillId;
 	}
 
 	public ExpenseStatus getStatus() {
