@@ -122,7 +122,11 @@ class RelatorioServiceTest {
 			List.of()
 		);
 		FinancialAssistantRecommendationsResponse recommendations = new FinancialAssistantRecommendationsResponse(List.of(
-			new RecommendationResponse("Sem dados suficientes", "Nao ha despesas registradas.", "Registre novas despesas.")
+			new RecommendationResponse(
+				"Sem dados suficientes",
+				"Ainda não há despesas registradas neste período.",
+				"Registre novas despesas."
+			)
 		));
 
 		when(analyticsService.summarize(LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30))).thenReturn(emptySummary);
