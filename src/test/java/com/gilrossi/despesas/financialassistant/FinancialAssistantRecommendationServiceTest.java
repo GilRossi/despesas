@@ -86,6 +86,14 @@ class FinancialAssistantRecommendationServiceTest {
 		FinancialAssistantRecommendationsResponse response = service.recommendations(month);
 
 		assertEquals(1, response.recommendations().size());
-		assertTrue(response.recommendations().getFirst().title().contains("Sem dados"));
+		assertEquals("Sem dados suficientes", response.recommendations().getFirst().title());
+		assertEquals(
+			"Ainda não há despesas registradas neste período para gerar sugestões úteis.",
+			response.recommendations().getFirst().rationale()
+		);
+		assertEquals(
+			"Registre despesas do seu espaço para liberar comparações e próximos passos.",
+			response.recommendations().getFirst().action()
+		);
 	}
 }
