@@ -16,6 +16,9 @@ public record FixedBillResponse(
 	ReferenceResponse subcategory,
 	ReferenceResponse spaceReference,
 	boolean active,
-	Instant createdAt
+	Instant createdAt,
+	LocalDate nextDueDate,
+	FixedBillOperationalStatus operationalStatus,
+	FixedBillGeneratedExpenseResponse lastGeneratedExpense
 ) {
 }

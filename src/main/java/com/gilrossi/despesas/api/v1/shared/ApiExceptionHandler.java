@@ -21,6 +21,7 @@ import com.gilrossi.despesas.emailingestion.EmailIngestionReviewActionNotAllowed
 import com.gilrossi.despesas.emailingestion.EmailIngestionReviewNotFoundException;
 import com.gilrossi.despesas.identity.AppUserNotFoundException;
 import com.gilrossi.despesas.expense.ExpenseNotFoundException;
+import com.gilrossi.despesas.fixedbill.FixedBillNotFoundException;
 import com.gilrossi.despesas.identity.DuplicateRegistrationException;
 import com.gilrossi.despesas.payment.PaymentBusinessRuleException;
 import com.gilrossi.despesas.payment.PaymentNotFoundException;
@@ -78,6 +79,7 @@ public class ApiExceptionHandler {
 		CategoryNotFoundException.class,
 		SubcategoryNotFoundException.class,
 		ExpenseNotFoundException.class,
+		FixedBillNotFoundException.class,
 		com.gilrossi.despesas.payment.ExpenseNotFoundException.class,
 		PaymentNotFoundException.class,
 		EmailIngestionReviewNotFoundException.class

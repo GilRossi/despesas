@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.expense;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Locale;
@@ -157,4 +158,30 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
 			and e.subcategoryId = :subcategoryId
 		""")
 	boolean existsByHouseholdIdAndSubcategoryId(@Param("householdId") Long householdId, @Param("subcategoryId") Long subcategoryId);
+
+	@Query("""
+		select e
+		from Expense e
+		where e.deletedAt is null
+			and e.householdId = :householdId
+			and e.fixedBillId = :fixedBillId
+		order by coalesce(e.dueDate, e.occurredOn) desc, e.id desc
+		""")
+	List<Expense> findActiveByHouseholdIdAndFixedBillIdOrderByEffectiveDateDescIdDesc(
+		@Param("householdId") Long householdId,
+		@Param("fixedBillId") Long fixedBillId
+	);
+
+	@Query("""
+		select e
+		from Expense e
+		where e.deletedAt is null
+			and e.householdId = :householdId
+			and e.fixedBillId in :fixedBillIds
+		order by e.fixedBillId asc, coalesce(e.dueDate, e.occurredOn) desc, e.id desc
+		""")
+	List<Expense> findActiveByHouseholdIdAndFixedBillIdInOrderByFixedBillIdAscEffectiveDateDescIdDesc(
+		@Param("householdId") Long householdId,
+		@Param("fixedBillIds") Collection<Long> fixedBillIds
+	);
 }
