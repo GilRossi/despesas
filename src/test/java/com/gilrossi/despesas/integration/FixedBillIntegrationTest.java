@@ -392,6 +392,9 @@ class FixedBillIntegrationTest {
 
 	@Test
 	void deve_lancar_a_proxima_despesa_operacional_a_partir_da_regra() throws Exception {
+		LocalDate firstDueDate = LocalDate.now().plusDays(2);
+		LocalDate nextDueDate = firstDueDate.plusMonths(1);
+
 		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
 			"Ana",
 			"fixed-bill-launch@local.invalid",
@@ -410,12 +413,12 @@ class FixedBillIntegrationTest {
 					{
 					  "description":"Internet fibra",
 					  "amount":129.90,
-					  "firstDueDate":"2026-04-10",
+					  "firstDueDate":"%s",
 					  "frequency":"MONTHLY",
 					  "categoryId":%s,
 					  "subcategoryId":%s
 					}
-					""".formatted(category.getId(), subcategory.getId())))
+					""".formatted(firstDueDate, category.getId(), subcategory.getId())))
 			.andExpect(status().isCreated())
 			.andReturn()
 			.getResponse()
@@ -427,7 +430,7 @@ class FixedBillIntegrationTest {
 				.header("Authorization", bearer(token)))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.data.description").value("Internet fibra"))
-			.andExpect(jsonPath("$.data.dueDate").value("2026-04-10"))
+			.andExpect(jsonPath("$.data.dueDate").value(firstDueDate.toString()))
 			.andExpect(jsonPath("$.data.status").value("PREVISTA"))
 			.andReturn()
 			.getResponse()
@@ -443,7 +446,57 @@ class FixedBillIntegrationTest {
 				.header("Authorization", bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data[0].lastGeneratedExpense.expenseId").value(expenseId))
-			.andExpect(jsonPath("$.data[0].nextDueDate").value("2026-05-10"));
+			.andExpect(jsonPath("$.data[0].nextDueDate").value(nextDueDate.toString()));
+	}
+
+	@Test
+	void deve_lancar_despesa_vencida_quando_regra_ja_estiver_com_vencimento_no_passado() throws Exception {
+		LocalDate firstDueDate = LocalDate.now().minusDays(2);
+		LocalDate nextDueDate = firstDueDate.plusMonths(1);
+
+		RegistrationResponse owner = registrationService.register(new RegistrationRequest(
+			"Ana",
+			"fixed-bill-overdue@local.invalid",
+			"senha123",
+			"Casa da Ana"
+		));
+		String token = loginApi("fixed-bill-overdue@local.invalid", "senha123");
+
+		Category category = requireCategory(owner.householdId(), "Moradia");
+		Subcategory subcategory = requireSubcategory(owner.householdId(), category.getId(), "Internet");
+
+		String createResponse = mockMvc.perform(post("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token))
+				.contentType("application/json")
+				.content("""
+					{
+					  "description":"Internet fibra",
+					  "amount":129.90,
+					  "firstDueDate":"%s",
+					  "frequency":"MONTHLY",
+					  "categoryId":%s,
+					  "subcategoryId":%s
+					}
+					""".formatted(firstDueDate, category.getId(), subcategory.getId())))
+			.andExpect(status().isCreated())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		long fixedBillId = objectMapper.readTree(createResponse).path("data").path("id").asLong();
+
+		mockMvc.perform(post("/api/v1/fixed-bills/%s/launch-expense".formatted(fixedBillId))
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.data.dueDate").value(firstDueDate.toString()))
+			.andExpect(jsonPath("$.data.status").value("VENCIDA"))
+			.andExpect(jsonPath("$.data.overdue").value(true));
+
+		mockMvc.perform(get("/api/v1/fixed-bills")
+				.header("Authorization", bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data[0].nextDueDate").value(nextDueDate.toString()))
+			.andExpect(jsonPath("$.data[0].operationalStatus").value("UPCOMING"));
 	}
 
 	@Test
