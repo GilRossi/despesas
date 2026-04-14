@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.EnumSet;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,9 @@ class RegistrationServiceTest {
 	@Mock
 	private HouseholdCatalogBootstrapService householdCatalogBootstrapService;
 
+	@Mock
+	private HouseholdModuleService householdModuleService;
+
 	private RegistrationService service;
 
 	@BeforeEach
@@ -44,7 +49,8 @@ class RegistrationServiceTest {
 			householdRepository,
 			householdMemberRepository,
 			passwordEncoder,
-			householdCatalogBootstrapService
+			householdCatalogBootstrapService,
+			householdModuleService
 		);
 	}
 
@@ -81,6 +87,7 @@ class RegistrationServiceTest {
 		assertEquals("ana@local.invalid", response.email());
 		assertEquals("OWNER", response.role());
 		verify(householdCatalogBootstrapService).bootstrapDefaults(10L);
+		verify(householdModuleService).initializeForHousehold(10L, HouseholdModuleKey.defaultEnabledModules());
 	}
 
 	@Test
@@ -146,5 +153,37 @@ class RegistrationServiceTest {
 		service.register(new RegistrationRequest("Ana", "ana@local.invalid", "senha123", "Casa"));
 
 		verify(householdCatalogBootstrapService).bootstrapDefaults(eq(44L));
+		verify(householdModuleService).initializeForHousehold(eq(44L), anySet());
+	}
+
+	@Test
+	void deve_inicializar_modulos_customizados_quando_registro_interno_pedir() {
+		when(appUserRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("ana@local.invalid")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("senha123")).thenReturn("{bcrypt}senha-criptografada");
+		when(householdRepository.save(any(Household.class))).thenAnswer(invocation -> {
+			Household household = invocation.getArgument(0);
+			household.setId(77L);
+			return household;
+		});
+		when(appUserRepository.save(any(AppUser.class))).thenAnswer(invocation -> {
+			AppUser user = invocation.getArgument(0);
+			user.setId(20L);
+			return user;
+		});
+		when(householdMemberRepository.save(any(HouseholdMember.class))).thenAnswer(invocation -> {
+			HouseholdMember member = invocation.getArgument(0);
+			member.setId(30L);
+			return member;
+		});
+
+		service.register(
+			new RegistrationRequest("Ana", "ana@local.invalid", "senha123", "Casa"),
+			EnumSet.of(HouseholdModuleKey.FINANCIAL, HouseholdModuleKey.DRIVER)
+		);
+
+		verify(householdModuleService).initializeForHousehold(
+			77L,
+			EnumSet.of(HouseholdModuleKey.FINANCIAL, HouseholdModuleKey.DRIVER)
+		);
 	}
 }
