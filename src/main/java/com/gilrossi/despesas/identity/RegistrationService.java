@@ -1,5 +1,6 @@
 package com.gilrossi.despesas.identity;
 
+import java.util.Set;
 import java.util.Locale;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,23 +16,31 @@ public class RegistrationService {
 	private final HouseholdMemberRepository householdMemberRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final HouseholdCatalogBootstrapService householdCatalogBootstrapService;
+	private final HouseholdModuleService householdModuleService;
 
 	public RegistrationService(
 		AppUserRepository appUserRepository,
 		HouseholdRepository householdRepository,
 		HouseholdMemberRepository householdMemberRepository,
 		PasswordEncoder passwordEncoder,
-		HouseholdCatalogBootstrapService householdCatalogBootstrapService
+		HouseholdCatalogBootstrapService householdCatalogBootstrapService,
+		HouseholdModuleService householdModuleService
 	) {
 		this.appUserRepository = appUserRepository;
 		this.householdRepository = householdRepository;
 		this.householdMemberRepository = householdMemberRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.householdCatalogBootstrapService = householdCatalogBootstrapService;
+		this.householdModuleService = householdModuleService;
 	}
 
 	@Transactional
 	public RegistrationResponse register(RegistrationRequest request) {
+		return register(request, HouseholdModuleKey.defaultEnabledModules());
+	}
+
+	@Transactional
+	public RegistrationResponse register(RegistrationRequest request, Set<HouseholdModuleKey> enabledModules) {
 		String name = sanitize(request.name());
 		String email = sanitizeEmail(request.email());
 		String password = request.password();
@@ -57,6 +66,7 @@ public class RegistrationService {
 		AppUser user = appUserRepository.save(new AppUser(name, email, passwordEncoder.encode(password)));
 		HouseholdMember member = householdMemberRepository.save(new HouseholdMember(household, user, HouseholdMemberRole.OWNER));
 		householdCatalogBootstrapService.bootstrapDefaults(household.getId());
+		householdModuleService.initializeForHousehold(household.getId(), enabledModules);
 		return RegistrationResponse.from(user, member);
 	}
 

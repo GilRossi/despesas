@@ -11,4 +11,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 	Optional<AppUser> findByIdAndDeletedAtIsNull(Long id);
 
 	boolean existsByPlatformRoleAndDeletedAtIsNull(PlatformUserRole platformRole);
+
+	long countByDeletedAtIsNull();
+
+	long countByPlatformRoleAndDeletedAtIsNull(PlatformUserRole platformRole);
 }

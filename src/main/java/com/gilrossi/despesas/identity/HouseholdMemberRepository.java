@@ -35,6 +35,21 @@ public interface HouseholdMemberRepository extends JpaRepository<HouseholdMember
 		""")
 	List<HouseholdMember> findActiveMembershipsByUserId(@Param("userId") Long userId);
 
+	@Query("""
+		select member
+		from HouseholdMember member
+		join fetch member.household household
+		join fetch member.user user
+		where household.id in :householdIds
+		  and household.deletedAt is null
+		  and user.deletedAt is null
+		  and member.deletedAt is null
+		order by household.id asc,
+			case when member.role = com.gilrossi.despesas.identity.HouseholdMemberRole.OWNER then 0 else 1 end,
+			member.id asc
+		""")
+	List<HouseholdMember> findActiveMembershipsByHouseholdIds(@Param("householdIds") List<Long> householdIds);
+
 	default Optional<HouseholdMember> findFirstActiveMembershipByUserId(Long userId) {
 		return findActiveMembershipsByUserId(userId).stream().findFirst();
 	}

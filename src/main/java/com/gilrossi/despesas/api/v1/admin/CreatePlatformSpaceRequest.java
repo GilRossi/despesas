@@ -8,10 +8,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public record CreateHouseholdOwnerRequest(
-	@NotBlank(message = "householdName must not be blank")
-	@Size(max = 120, message = "householdName must have at most 120 characters")
-	String householdName,
+public record CreatePlatformSpaceRequest(
+	@NotBlank(message = "spaceName must not be blank")
+	@Size(max = 120, message = "spaceName must have at most 120 characters")
+	String spaceName,
 
 	@NotBlank(message = "ownerName must not be blank")
 	@Size(max = 120, message = "ownerName must have at most 120 characters")
