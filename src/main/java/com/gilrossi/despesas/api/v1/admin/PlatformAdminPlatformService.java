@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.gilrossi.despesas.identity.AppUserRepository;
 import com.gilrossi.despesas.identity.Household;
+import com.gilrossi.despesas.identity.HouseholdMember;
+import com.gilrossi.despesas.identity.HouseholdMemberRepository;
+import com.gilrossi.despesas.identity.HouseholdMemberRole;
 import com.gilrossi.despesas.identity.HouseholdModule;
 import com.gilrossi.despesas.identity.HouseholdModuleKey;
 import com.gilrossi.despesas.identity.HouseholdModuleService;
@@ -30,23 +33,29 @@ import com.gilrossi.despesas.identity.PlatformUserRole;
 public class PlatformAdminPlatformService {
 
 	private final HouseholdRepository householdRepository;
+	private final HouseholdMemberRepository householdMemberRepository;
 	private final AppUserRepository appUserRepository;
 	private final HouseholdModuleService householdModuleService;
+	private final PlatformAdminOperationalAlertEvaluator operationalAlertEvaluator;
 	private final HealthEndpoint healthEndpoint;
 	private final InfoEndpoint infoEndpoint;
 	private final Environment environment;
 
 	public PlatformAdminPlatformService(
 		HouseholdRepository householdRepository,
+		HouseholdMemberRepository householdMemberRepository,
 		AppUserRepository appUserRepository,
 		HouseholdModuleService householdModuleService,
+		PlatformAdminOperationalAlertEvaluator operationalAlertEvaluator,
 		HealthEndpoint healthEndpoint,
 		InfoEndpoint infoEndpoint,
 		Environment environment
 	) {
 		this.householdRepository = householdRepository;
+		this.householdMemberRepository = householdMemberRepository;
 		this.appUserRepository = appUserRepository;
 		this.householdModuleService = householdModuleService;
+		this.operationalAlertEvaluator = operationalAlertEvaluator;
 		this.healthEndpoint = healthEndpoint;
 		this.infoEndpoint = infoEndpoint;
 		this.environment = environment;
@@ -93,15 +102,19 @@ public class PlatformAdminPlatformService {
 		MemoryUsage heap = memoryMXBean.getHeapMemoryUsage();
 		OperatingSystemMXBean operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
 		double systemLoadAverage = operatingSystemMXBean.getSystemLoadAverage();
-
-		return new PlatformAdminPlatformHealthResponse(
-			health.getStatus().getCode(),
-			Instant.now(),
+		Map<String, Object> info = infoEndpoint.info();
+		PlatformAdminPlatformHealthResponse.ActuatorExposure actuatorExposure =
 			new PlatformAdminPlatformHealthResponse.ActuatorExposure(
 				isEndpointExposed("health"),
 				isEndpointExposed("info"),
 				isEndpointExposed("metrics")
-			),
+			);
+		long spacesWithoutOwner = countSpacesWithoutOwner();
+
+		return new PlatformAdminPlatformHealthResponse(
+			health.getStatus().getCode(),
+			Instant.now(),
+			actuatorExposure,
 			new PlatformAdminPlatformHealthResponse.JvmSnapshot(
 				Runtime.getRuntime().availableProcessors(),
 				runtimeMXBean.getUptime(),
@@ -112,7 +125,19 @@ public class PlatformAdminPlatformService {
 			new PlatformAdminPlatformHealthResponse.SystemSnapshot(
 				systemLoadAverage < 0 ? null : systemLoadAverage
 			),
-			infoEndpoint.info()
+			info,
+			operationalAlertEvaluator.evaluate(new PlatformAdminOperationalAlertEvaluator.Input(
+				health.getStatus().getCode(),
+				actuatorExposure.healthExposed(),
+				actuatorExposure.infoExposed(),
+				actuatorExposure.metricsExposed(),
+				info.isEmpty(),
+				Runtime.getRuntime().availableProcessors(),
+				heap.getUsed(),
+				heap.getMax(),
+				systemLoadAverage < 0 ? null : systemLoadAverage,
+				spacesWithoutOwner
+			))
 		);
 	}
 
@@ -128,5 +153,24 @@ public class PlatformAdminPlatformService {
 		String configuredEndpoints = environment.getProperty("management.endpoints.web.exposure.include", "");
 		List<String> ids = List.of(configuredEndpoints.split(","));
 		return ids.stream().map(String::trim).anyMatch(endpointId::equals);
+	}
+
+	private long countSpacesWithoutOwner() {
+		List<Household> households = householdRepository.findAllByDeletedAtIsNullOrderByCreatedAtDescIdDesc();
+		if (households.isEmpty()) {
+			return 0;
+		}
+
+		Map<Long, List<HouseholdMember>> membershipsByHouseholdId = householdMemberRepository
+			.findActiveMembershipsByHouseholdIds(households.stream().map(Household::getId).toList())
+			.stream()
+			.collect(Collectors.groupingBy(member -> member.getHousehold().getId()));
+
+		return households.stream()
+			.filter(household -> membershipsByHouseholdId
+				.getOrDefault(household.getId(), List.of())
+				.stream()
+				.noneMatch(member -> member.getRole() == HouseholdMemberRole.OWNER))
+			.count();
 	}
 }
