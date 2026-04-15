@@ -1,6 +1,7 @@
 package com.gilrossi.despesas.api.v1.admin;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 public record PlatformAdminPlatformHealthResponse(
@@ -9,7 +10,8 @@ public record PlatformAdminPlatformHealthResponse(
 	ActuatorExposure actuator,
 	JvmSnapshot jvm,
 	SystemSnapshot system,
-	Map<String, Object> info
+	Map<String, Object> info,
+	List<OperationalAlert> alerts
 ) {
 
 	public record ActuatorExposure(
@@ -30,6 +32,15 @@ public record PlatformAdminPlatformHealthResponse(
 
 	public record SystemSnapshot(
 		Double systemLoadAverage
+	) {
+	}
+
+	public record OperationalAlert(
+		String code,
+		String severity,
+		String source,
+		String title,
+		String message
 	) {
 	}
 }

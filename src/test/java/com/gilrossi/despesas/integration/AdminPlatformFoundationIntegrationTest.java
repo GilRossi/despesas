@@ -128,7 +128,7 @@ class AdminPlatformFoundationIntegrationTest {
 			.andExpect(jsonPath("$.data.actuator.infoExposed").value(true))
 			.andExpect(jsonPath("$.data.actuator.metricsExposed").value(false));
 
-		mockMvc.perform(get("/api/v1/admin/platform/health")
+		String healthResponse = mockMvc.perform(get("/api/v1/admin/platform/health")
 				.header("Authorization", bearer(adminToken)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.applicationStatus").value("UP"))
@@ -136,7 +136,16 @@ class AdminPlatformFoundationIntegrationTest {
 			.andExpect(jsonPath("$.data.actuator.metricsExposed").value(false))
 			.andExpect(jsonPath("$.data.jvm.availableProcessors").isNumber())
 			.andExpect(jsonPath("$.data.jvm.heapUsedBytes").isNumber())
-			.andExpect(jsonPath("$.data.jvm.uptimeMs").isNumber());
+			.andExpect(jsonPath("$.data.jvm.uptimeMs").isNumber())
+			.andExpect(jsonPath("$.data.alerts").isArray())
+			.andReturn()
+			.getResponse()
+			.getContentAsString();
+
+		JsonNode alertCodes = objectMapper.readTree(healthResponse).path("data").path("alerts");
+		assertThat(alertCodes).isNotEmpty();
+		assertThat(alertCodes.findValuesAsText("code"))
+			.contains("ACTUATOR_METRICS_NOT_EXPOSED", "ACTUATOR_INFO_EMPTY");
 	}
 
 	@Test
