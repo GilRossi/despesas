@@ -77,6 +77,11 @@ class DriverModuleGateIntegrationTest {
 				.header("Authorization", bearer(ownerToken)))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+		mockMvc.perform(get("/api/v1/driver/bootstrap")
+				.header("Authorization", bearer(ownerToken)))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
 	}
 
 	@Test
@@ -112,6 +117,19 @@ class DriverModuleGateIntegrationTest {
 			.andExpect(jsonPath("$.data.enabled").value(true))
 			.andExpect(jsonPath("$.data.spaceId").value(spaceId));
 
+		mockMvc.perform(get("/api/v1/driver/bootstrap")
+				.header("Authorization", bearer(ownerToken)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.moduleKey").value("DRIVER"))
+			.andExpect(jsonPath("$.data.spaceId").value(spaceId))
+			.andExpect(jsonPath("$.data.targetCity").value("Praia Grande"))
+			.andExpect(jsonPath("$.data.targetState").value("SP"))
+			.andExpect(jsonPath("$.data.targetCountry").value("BR"))
+			.andExpect(jsonPath("$.data.providers[0].key").value("UBER_DRIVER"))
+			.andExpect(jsonPath("$.data.providers[0].label").value("Uber Driver"))
+			.andExpect(jsonPath("$.data.providers[3].key").value("MOBIZAP_SP"))
+			.andExpect(jsonPath("$.data.providers[6].key").value("RAPPI_DELIVERER"));
+
 		mockMvc.perform(put("/api/v1/admin/spaces/{spaceId}/modules", spaceId)
 				.header("Authorization", bearer(adminToken))
 				.contentType(MediaType.APPLICATION_JSON)
@@ -125,6 +143,11 @@ class DriverModuleGateIntegrationTest {
 			.andExpect(jsonPath("$.data.modules[1].enabled").value(false));
 
 		mockMvc.perform(get("/api/v1/driver/_probe")
+				.header("Authorization", bearer(ownerToken)))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+		mockMvc.perform(get("/api/v1/driver/bootstrap")
 				.header("Authorization", bearer(ownerToken)))
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.code").value("FORBIDDEN"));
