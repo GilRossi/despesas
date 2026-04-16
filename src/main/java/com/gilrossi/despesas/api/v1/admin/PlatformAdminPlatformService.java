@@ -10,9 +10,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.health.HealthComponent;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.info.InfoEndpoint;
+import org.springframework.boot.availability.ApplicationAvailability;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.core.env.Environment;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -39,7 +42,9 @@ public class PlatformAdminPlatformService {
 	private final PlatformAdminOperationalAlertEvaluator operationalAlertEvaluator;
 	private final HealthEndpoint healthEndpoint;
 	private final InfoEndpoint infoEndpoint;
+	private final ApplicationAvailability applicationAvailability;
 	private final Environment environment;
+	private final BuildProperties buildProperties;
 
 	public PlatformAdminPlatformService(
 		HouseholdRepository householdRepository,
@@ -49,7 +54,9 @@ public class PlatformAdminPlatformService {
 		PlatformAdminOperationalAlertEvaluator operationalAlertEvaluator,
 		HealthEndpoint healthEndpoint,
 		InfoEndpoint infoEndpoint,
-		Environment environment
+		ApplicationAvailability applicationAvailability,
+		Environment environment,
+		ObjectProvider<BuildProperties> buildPropertiesProvider
 	) {
 		this.householdRepository = householdRepository;
 		this.householdMemberRepository = householdMemberRepository;
@@ -58,7 +65,9 @@ public class PlatformAdminPlatformService {
 		this.operationalAlertEvaluator = operationalAlertEvaluator;
 		this.healthEndpoint = healthEndpoint;
 		this.infoEndpoint = infoEndpoint;
+		this.applicationAvailability = applicationAvailability;
 		this.environment = environment;
+		this.buildProperties = buildPropertiesProvider.getIfAvailable();
 	}
 
 	@Transactional(readOnly = true)
@@ -115,6 +124,12 @@ public class PlatformAdminPlatformService {
 			health.getStatus().getCode(),
 			Instant.now(),
 			actuatorExposure,
+			deploymentSnapshot(),
+			new PlatformAdminPlatformHealthResponse.RuntimeSnapshot(
+				applicationAvailability.getLivenessState().name(),
+				applicationAvailability.getReadinessState().name(),
+				Instant.ofEpochMilli(runtimeMXBean.getStartTime())
+			),
 			new PlatformAdminPlatformHealthResponse.JvmSnapshot(
 				Runtime.getRuntime().availableProcessors(),
 				runtimeMXBean.getUptime(),
@@ -138,6 +153,15 @@ public class PlatformAdminPlatformService {
 				systemLoadAverage < 0 ? null : systemLoadAverage,
 				spacesWithoutOwner
 			))
+		);
+	}
+
+	private PlatformAdminPlatformHealthResponse.DeploymentSnapshot deploymentSnapshot() {
+		return new PlatformAdminPlatformHealthResponse.DeploymentSnapshot(
+			environment.getProperty("spring.application.name", "despesas"),
+			buildProperties == null ? null : buildProperties.getArtifact(),
+			buildProperties == null ? null : buildProperties.getVersion(),
+			buildProperties == null ? null : buildProperties.getTime()
 		);
 	}
 

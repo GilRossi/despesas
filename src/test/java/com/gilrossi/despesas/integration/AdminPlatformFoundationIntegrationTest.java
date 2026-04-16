@@ -134,9 +134,15 @@ class AdminPlatformFoundationIntegrationTest {
 			.andExpect(jsonPath("$.data.applicationStatus").value("UP"))
 			.andExpect(jsonPath("$.data.actuator.healthExposed").value(true))
 			.andExpect(jsonPath("$.data.actuator.metricsExposed").value(false))
+			.andExpect(jsonPath("$.data.deployment.applicationName").value("despesas"))
+			.andExpect(jsonPath("$.data.deployment.version").isString())
+			.andExpect(jsonPath("$.data.runtime.livenessState").isString())
+			.andExpect(jsonPath("$.data.runtime.readinessState").isString())
+			.andExpect(jsonPath("$.data.runtime.startedAt").isString())
 			.andExpect(jsonPath("$.data.jvm.availableProcessors").isNumber())
 			.andExpect(jsonPath("$.data.jvm.heapUsedBytes").isNumber())
 			.andExpect(jsonPath("$.data.jvm.uptimeMs").isNumber())
+			.andExpect(jsonPath("$.data.info.build.version").isString())
 			.andExpect(jsonPath("$.data.alerts").isArray())
 			.andReturn()
 			.getResponse()
@@ -145,7 +151,8 @@ class AdminPlatformFoundationIntegrationTest {
 		JsonNode alertCodes = objectMapper.readTree(healthResponse).path("data").path("alerts");
 		assertThat(alertCodes).isNotEmpty();
 		assertThat(alertCodes.findValuesAsText("code"))
-			.contains("ACTUATOR_METRICS_NOT_EXPOSED", "ACTUATOR_INFO_EMPTY");
+			.contains("ACTUATOR_METRICS_NOT_EXPOSED")
+			.doesNotContain("ACTUATOR_INFO_EMPTY");
 	}
 
 	@Test

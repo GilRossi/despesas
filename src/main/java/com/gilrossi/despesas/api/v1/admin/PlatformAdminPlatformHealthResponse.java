@@ -8,6 +8,8 @@ public record PlatformAdminPlatformHealthResponse(
 	String applicationStatus,
 	Instant checkedAt,
 	ActuatorExposure actuator,
+	DeploymentSnapshot deployment,
+	RuntimeSnapshot runtime,
 	JvmSnapshot jvm,
 	SystemSnapshot system,
 	Map<String, Object> info,
@@ -18,6 +20,21 @@ public record PlatformAdminPlatformHealthResponse(
 		boolean healthExposed,
 		boolean infoExposed,
 		boolean metricsExposed
+	) {
+	}
+
+	public record DeploymentSnapshot(
+		String applicationName,
+		String artifact,
+		String version,
+		Instant builtAt
+	) {
+	}
+
+	public record RuntimeSnapshot(
+		String livenessState,
+		String readinessState,
+		Instant startedAt
 	) {
 	}
 
